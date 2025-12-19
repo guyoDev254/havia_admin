@@ -7,7 +7,6 @@ import { usePermissions, Permission } from '@/hooks/usePermissions'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import PermissionGuard from '@/components/PermissionGuard'
 import { ArrowLeft, Save, AlertCircle, Upload, Image as ImageIcon } from 'lucide-react'
 
 export default function NewClubPage() {
@@ -31,16 +30,19 @@ export default function NewClubPage() {
 
     try {
       setUploadingLogo(true)
-      const formData = new FormData()
-      formData.append('file', file)
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
 
-      const response = await api.post('/upload/club-logo', formData, {
+      const response = await api.post('/upload/club-logo', uploadFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
       const uploadedLogoUrl = response.data.url
       setLogoUrl(uploadedLogoUrl)
-      setFormData({ ...formData, logo: uploadedLogoUrl })
+      setFormData(prevFormData => ({
+        ...prevFormData,
+        logo: uploadedLogoUrl,
+      }))
       alert('Logo uploaded successfully')
     } catch (error: any) {
       console.error('Error uploading logo:', error)

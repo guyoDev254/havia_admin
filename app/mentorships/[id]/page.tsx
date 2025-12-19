@@ -56,6 +56,8 @@ interface MentorshipDetail {
     matchScore: number
     skillMatch: number
     industryRelevance: number
+    availabilityMatch?: number
+    communicationMatch?: number
   }
   programs?: Array<{
     id: string
@@ -87,6 +89,7 @@ interface MentorshipDetail {
     id: string
     certificateNumber: string
     issuedAt: string
+    pdfUrl?: string
   }
   sessions?: Array<{
     id: string
@@ -675,7 +678,7 @@ export default function MentorshipDetailPage() {
                       </div>
                       <div className="text-center">
                         <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {mentorship.tasks?.length || 0}
+                          {totalTasks}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Tasks</p>
                       </div>

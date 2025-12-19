@@ -109,7 +109,7 @@ export default function PartnershipsPage() {
               </div>
               <p className="text-sm text-gray-600 mb-1">Partner Programs</p>
               <p className="text-2xl font-bold text-gray-900">
-                {partners.reduce((sum, p) => sum + p.programsCount, 0)}
+                {partners.reduce((sum, p) => sum + (p.programsCount ?? 0), 0)}
               </p>
             </div>
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
@@ -119,7 +119,7 @@ export default function PartnershipsPage() {
               </div>
               <p className="text-sm text-gray-600 mb-1">Total Engagement</p>
               <p className="text-2xl font-bold text-gray-900">
-                {partners.reduce((sum, p) => sum + p.engagement, 0).toLocaleString()}
+                {partners.reduce((sum, p) => sum + (p.engagement ?? 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
@@ -131,7 +131,7 @@ export default function PartnershipsPage() {
               <p className="text-2xl font-bold text-gray-900">
                 {partners.length > 0
                   ? Math.round(
-                      partners.reduce((sum, p) => sum + p.engagement, 0) / partners.length,
+                      partners.reduce((sum, p) => sum + (p.engagement ?? 0), 0) / partners.length,
                     )
                   : 0}
               </p>

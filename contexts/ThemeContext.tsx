@@ -52,8 +52,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setIsDark(prefersDark)
           document.documentElement.classList.toggle('dark', prefersDark)
         }
+        // @ts-ignore - Legacy API accepts MediaQueryList, not MediaQueryListEvent
         mediaQuery.addListener(legacyHandler)
-        return () => mediaQuery.removeListener(legacyHandler)
+        return () => {
+          // @ts-ignore - Legacy API
+          mediaQuery.removeListener(legacyHandler)
+        }
       }
     }
   }, [theme])
