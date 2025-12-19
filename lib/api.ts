@@ -1,6 +1,30 @@
 import axios from 'axios'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://104.237.150.116:1111'
+// Use relative path in production (Vercel) to avoid mixed content issues
+// Vercel rewrites will proxy /backend-api/* to the actual API server
+// For local development, use the full URL
+const getApiUrl = () => {
+  // Check environment variable first (allows override)
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL
+  }
+  
+  // If deployed on Vercel, use relative path to avoid mixed content
+  // VERCEL environment variable is set automatically by Vercel
+  if (process.env.VERCEL || process.env.VERCEL_URL) {
+    return '/backend-api' // Vercel will rewrite this to the actual API
+  }
+  
+  // If we're in the browser and on Vercel domain, use relative path
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    return '/backend-api'
+  }
+  
+  // Default to production API (for local development)
+  return 'http://104.237.150.116:1111'
+}
+
+const API_URL = getApiUrl()
 
 export const api = axios.create({
   baseURL: API_URL,
