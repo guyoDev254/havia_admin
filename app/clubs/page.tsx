@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -29,6 +30,7 @@ interface Club {
 export default function ClubsPage() {
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
+  const { showSuccess, showError, showConfirm } = useSweetAlert()
   const [clubs, setClubs] = useState<Club[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -75,34 +77,51 @@ export default function ClubsPage() {
   const handleApprove = async (clubId: string) => {
     try {
       await api.put(`/admin/clubs/${clubId}`, { isActive: true })
+      await showSuccess('Club Approved', 'The club has been approved successfully!')
       fetchClubs()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving club:', error)
-      alert('Failed to approve club')
+      showError('Approval Failed', error.response?.data?.message || 'Failed to approve club')
     }
   }
 
   const handleReject = async (clubId: string) => {
-    if (!confirm('Are you sure you want to deactivate this club?')) return
+    const confirmed = await showConfirm(
+      'Deactivate Club?',
+      'Are you sure you want to deactivate this club?',
+      'Yes, deactivate',
+      'Cancel'
+    )
+    if (!confirmed) return
 
     try {
       await api.put(`/admin/clubs/${clubId}`, { isActive: false })
+      await showSuccess('Club Deactivated', 'The club has been deactivated successfully!')
       fetchClubs()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deactivating club:', error)
-      alert('Failed to deactivate club')
+      showError('Deactivation Failed', error.response?.data?.message || 'Failed to deactivate club')
     }
   }
 
   const handleDelete = async (clubId: string) => {
-    if (!confirm('Are you sure you want to delete this club? This action cannot be undone.')) return
+    const confirmed = await showConfirm(
+      'Delete Club?',
+      'Are you sure you want to delete this club? This action cannot be undone.',
+      'Yes, delete',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/clubs/${clubId}`)
+      await showSuccess('Club Deleted', 'The club has been deleted successfully!')
       fetchClubs()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting club:', error)
-      alert('Failed to delete club')
+      showError('Deletion Failed', error.response?.data?.message || 'Failed to delete club')
     }
   }
 

@@ -4,42 +4,42 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
+  const { showSuccess, showError } = useSweetAlert()
 
   const [formData, setFormData] = useState({
     newPassword: '',
     confirmPassword: '',
   })
-  const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!token) {
-      setError('Invalid reset token')
+      showError('Invalid Token', 'The reset token is missing or invalid.')
     }
-  }, [token])
+  }, [token, showError])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!token) {
-      setError('Invalid reset token')
+      showError('Invalid Token', 'The reset token is missing or invalid.')
       return
     }
 
     if (formData.newPassword.length < 6) {
-      setError('Password must be at least 6 characters long')
+      showError('Invalid Password', 'Password must be at least 6 characters long.')
       return
     }
 
     if (formData.newPassword !== formData.confirmPassword) {
-      setError('Passwords do not match')
+      showError('Password Mismatch', 'Passwords do not match. Please try again.')
       return
     }
 
@@ -50,12 +50,34 @@ function ResetPasswordForm() {
         token,
         newPassword: formData.newPassword,
       })
+      await showSuccess('Password Reset Successful', 'Your password has been reset successfully. Redirecting to login...')
       setSuccess(true)
       setTimeout(() => {
         router.push('/login')
       }, 2000)
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to reset password')
+      let errorMessage = 'Failed to reset password. Please try again.'
+      
+      if (err.response) {
+        const status = err.response.status
+        const message = err.response?.data?.message || err.response?.data?.error
+        
+        if (status === 400) {
+          errorMessage = 'Invalid request. Please check your password and try again.'
+        } else if (status === 401 || status === 403) {
+          errorMessage = 'Reset token expired or invalid. Please request a new reset link.'
+        } else if (status >= 500) {
+          errorMessage = 'Server error. Please try again in a few moments.'
+        } else if (message && message.length < 100) {
+          errorMessage = message
+        }
+      } else if (err.message) {
+        if (err.message.includes('Network Error') || err.message.includes('fetch')) {
+          errorMessage = 'Connection error. Please check your internet connection.'
+        }
+      }
+      
+      showError('Reset Failed', errorMessage)
     } finally {
       setLoading(false)
     }
@@ -105,11 +127,6 @@ function ResetPasswordForm() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
           <div>
             <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
               New Password

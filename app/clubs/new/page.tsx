@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -13,6 +14,7 @@ export default function NewClubPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
+  const { showSuccess, showError } = useSweetAlert()
   const [loading, setLoading] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string>('')
@@ -43,10 +45,10 @@ export default function NewClubPage() {
         ...prevFormData,
         logo: uploadedLogoUrl,
       }))
-      alert('Logo uploaded successfully')
+      showSuccess('Logo uploaded successfully')
     } catch (error: any) {
       console.error('Error uploading logo:', error)
-      alert(error.response?.data?.message || 'Failed to upload logo')
+      showError('Upload Failed', error.response?.data?.message || 'Failed to upload logo')
     } finally {
       setUploadingLogo(false)
     }
@@ -57,10 +59,11 @@ export default function NewClubPage() {
     try {
       setLoading(true)
       await api.post('/clubs', formData)
+      await showSuccess('Club Created', 'The club has been created successfully!')
       router.push('/clubs')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating club:', error)
-      alert('Failed to create club')
+      showError('Creation Failed', error.response?.data?.message || 'Failed to create club')
     } finally {
       setLoading(false)
     }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 const BACKGROUND_MEDIA = [
   {
@@ -23,12 +24,12 @@ const BACKGROUND_MEDIA = [
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
-  const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const router = useRouter()
   const { isDark, theme } = useTheme()
+  const { showSuccess, showError } = useSweetAlert()
 
   // Carousel auto-scroll effect - 2 second interval
   useEffect(() => {
@@ -64,14 +65,38 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
     setLoading(true)
 
     try {
       await api.post('/auth/forgot-password', { email })
+      await showSuccess(
+        'Email Sent',
+        'If an account exists with this email, a password reset link has been sent.'
+      )
       setSuccess(true)
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to send reset email')
+      let errorMessage = 'Failed to send reset email. Please try again.'
+      
+      if (err.response) {
+        const status = err.response.status
+        const message = err.response?.data?.message || err.response?.data?.error
+        
+        if (status === 404) {
+          errorMessage = 'Email not found. Please check your email address.'
+        } else if (status === 429) {
+          errorMessage = 'Too many requests. Please try again later.'
+        } else if (status >= 500) {
+          errorMessage = 'Server error. Please try again in a few moments.'
+        } else if (message && message.length < 100) {
+          errorMessage = message
+        }
+      } else if (err.message) {
+        if (err.message.includes('Network Error') || err.message.includes('fetch')) {
+          errorMessage = 'Connection error. Please check your internet connection.'
+        }
+      }
+      
+      showError('Request Failed', errorMessage)
     } finally {
       setLoading(false)
     }
@@ -233,19 +258,6 @@ export default function ForgotPasswordPage() {
             : 'bg-white border-gray-100'
         }`}>
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className={`border-2 px-4 py-3 rounded-xl flex items-center gap-2 transition-colors duration-300 ${
-                isDark 
-                  ? 'bg-red-900/30 border-red-700 text-red-300' 
-                  : 'bg-red-50 border-red-200 text-red-700'
-              }`}>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            )}
-            
             <div>
               <label htmlFor="email" className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
                 isDark ? 'text-gray-300' : 'text-gray-700'
