@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/backend-api/:path*",
-      "destination": "http://104.237.150.116:1111/:path*"
+      "destination": "https://api.northernbox.co.ke/:path*"
     }
   ]
 }

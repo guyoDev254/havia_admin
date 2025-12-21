@@ -1,0 +1,16 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: havia-admin
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: production
+      # Uncomment and set your API URL if needed
+      # NEXT_PUBLIC_API_URL: http://your-api-url:port
+    # Uncomment to use environment file
+    # env_file:
+    #   - .env.local
