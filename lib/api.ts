@@ -15,7 +15,7 @@ const getApiUrl = () => {
       return process.env.NEXT_PUBLIC_API_URL
     }
     // For local development in browser
-    return 'http://104.237.150.116:1111'
+    return 'https://api.northernbox.co.ke'
   }
   
   // Server-side: Check environment variable first
@@ -29,7 +29,7 @@ const getApiUrl = () => {
   }
   
   // Server-side default (will be overridden on client)
-  return 'http://104.237.150.116:1111'
+  return 'https://api.northernbox.co.ke'
 }
 
 // Create axios instance with dynamic baseURL
