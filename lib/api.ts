@@ -1,45 +1,5 @@
 import axios from 'axios'
-
-// Use relative path in production (Vercel) to avoid mixed content issues
-// Vercel rewrites will proxy /backend-api/* to the actual API server
-// For local development, use the full URL
-const getApiUrl = () => {
-  // Always check browser first (runtime detection)
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    
-    // If on production admin domain (admin.northern.co.ke), use direct API URL
-    if (hostname === 'admin.northern.co.ke' || hostname === 'admin.northernbox.co.ke') {
-      return 'https://api.northernbox.co.ke';
-    }
-    
-    // If on Vercel domain, use relative path (for Vercel rewrites)
-    if (hostname.includes('vercel.app')) {
-      return '/backend-api';
-    }
-    
-    // If environment variable is set, use it
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      return process.env.NEXT_PUBLIC_API_URL;
-    }
-    
-    // For local development in browser
-    return 'https://api.northernbox.co.ke';
-  }
-  
-  // Server-side: Check environment variable first
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  
-  // Server-side: Check Vercel environment variables
-  if (process.env.VERCEL || process.env.VERCEL_URL) {
-    return '/backend-api';
-  }
-  
-  // Server-side default (will be overridden on client)
-  return 'https://api.northernbox.co.ke';
-}
+import { getApiUrl } from './api.config'
 
 // Create axios instance with dynamic baseURL
 const createApiInstance = () => {
