@@ -27,38 +27,17 @@ permissions:
 
 jobs:
   # ============================================
-  # Build
+  # Build and Docker in one job
   # ============================================
-  build:
-    name: Build Application
+  docker-build-test:
+    name: Build & Push Docker Image (Test)
     runs-on: ubuntu-latest
-    outputs:
-      build_number: ${{ steps.build_number.outputs.build_number }}
+    if: github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'test')
+    environment:
+      name: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Generate Build Number
-        id: build_number
-        run: |
-          # Generate incremental build number based on date
-          DATE=$(date +%Y%m%d)
-          COUNTER_FILE=".build-counter-$DATE"
-          
-          # Read or initialize counter
-          if [ -f "$COUNTER_FILE" ]; then
-            COUNTER=$(cat "$COUNTER_FILE")
-            COUNTER=$((COUNTER + 1))
-          else
-            COUNTER=1
-          fi
-          
-          # Save new counter
-          echo $COUNTER > "$COUNTER_FILE"
-          
-          # Output build number
-          echo "build_number=$DATE-$COUNTER" >> $GITHUB_OUTPUT
-          echo "Build number: $DATE-$COUNTER"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -74,33 +53,6 @@ jobs:
         env:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: 1
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next/
-          retention-days: 7
-
-  # ============================================
-  # Docker Build & Push
-  # ============================================
-  docker-build-test:
-    name: Build & Push Docker Image (Test)
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'test')
-    environment:
-      name: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -120,7 +72,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev
           tags: |
             type=raw,value={{date 'YYYY.mm.dd'}}
-            type=raw,value={{date 'YYYY.mm.dd'}}-${{ needs.build.outputs.build_number }}
+            type=raw,value={{date 'YYYY.mm.dd'}}-${{ github.run_number }}
             type=raw,value=test-latest
             type=sha,prefix=dev-,format=short
 
@@ -142,7 +94,6 @@ jobs:
   docker-build-production:
     name: Build & Push Docker Image (Production)
     runs-on: ubuntu-latest
-    needs: build
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     environment:
       name: production
@@ -150,11 +101,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: nextjs-build
-          path: .next/
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build Next.js application
+        run: yarn build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -174,7 +134,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value={{date 'YYYY.mm.dd'}}
-            type=raw,value={{date 'YYYY.mm.dd'}}-${{ needs.build.outputs.build_number }}
+            type=raw,value={{date 'YYYY.mm.dd'}}-${{ github.run_number }}
             type=raw,value=latest
             type=semver,pattern={{version}}
             type=sha,prefix=prod-,format=short
@@ -221,7 +181,6 @@ jobs:
             ## Automated Promotion from Dev to Main
 
             This PR was automatically created after successful CI checks:
-            - ✅ Build succeeded
             - ✅ Docker image built and pushed (test environment)
 
             **Review Checklist:**
@@ -231,7 +190,7 @@ jobs:
             - [ ] Ready for production deployment
 
             **Docker Images:**
-            - Test: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:dev`
+            - Test: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:{{date 'YYYY.mm.dd'}}-${{ github.run_number }}`
           branch: auto-promote-dev-to-main
           base: main
           labels: |
