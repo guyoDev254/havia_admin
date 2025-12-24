@@ -27,14 +27,20 @@ permissions:
 
 jobs:
   # ============================================
-  # Build
+  # Build - This job builds once and shares artifacts
   # ============================================
   build:
     name: Build Application
     runs-on: ubuntu-latest
+    outputs:
+      build_id: ${{ steps.build_id.outputs.id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Generate unique build ID
+        id: build_id
+        run: echo "id=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -54,12 +60,12 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: admin-build
+          name: admin-build-${{ steps.build_id.outputs.id }}
           path: .next/
           retention-days: 7
 
   # ============================================
-  # Docker Build & Push
+  # Docker Build & Push - Test
   # ============================================
   docker-build-test:
     name: Build & Push Docker Image (Test)
@@ -75,7 +81,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: admin-build
+          name: admin-build-${{ needs.build.outputs.build_id }}
           path: .next/
 
       - name: Set up Docker Buildx
@@ -115,6 +121,9 @@ jobs:
             NODE_ENV=test
             NEXT_PUBLIC_API_URL=${{ secrets.TEST_API_URL }}
 
+  # ============================================
+  # Docker Build & Push - Production
+  # ============================================
   docker-build-production:
     name: Build & Push Docker Image (Production)
     runs-on: ubuntu-latest
@@ -129,7 +138,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: admin-build
+          name: admin-build-${{ needs.build.outputs.build_id }}
           path: .next/
 
       - name: Set up Docker Buildx
