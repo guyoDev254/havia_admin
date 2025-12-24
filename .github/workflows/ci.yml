@@ -27,14 +27,11 @@ permissions:
 
 jobs:
   # ============================================
-  # Build and Docker in one job
+  # Build
   # ============================================
-  docker-build-test:
-    name: Build & Push Docker Image (Test)
+  build:
+    name: Build Application
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'test')
-    environment:
-      name: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,6 +50,33 @@ jobs:
         env:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-build
+          path: .next/
+          retention-days: 7
+
+  # ============================================
+  # Docker Build & Push
+  # ============================================
+  docker-build-test:
+    name: Build & Push Docker Image (Test)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'test')
+    environment:
+      name: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-build
+          path: .next/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -94,6 +118,7 @@ jobs:
   docker-build-production:
     name: Build & Push Docker Image (Production)
     runs-on: ubuntu-latest
+    needs: build
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     environment:
       name: production
@@ -101,20 +126,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Build Next.js application
-        run: yarn build
-        env:
-          NODE_ENV: production
-          NEXT_TELEMETRY_DISABLED: 1
+          name: admin-build
+          path: .next/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -181,6 +197,7 @@ jobs:
             ## Automated Promotion from Dev to Main
 
             This PR was automatically created after successful CI checks:
+            - ✅ Build succeeded
             - ✅ Docker image built and pushed (test environment)
 
             **Review Checklist:**
