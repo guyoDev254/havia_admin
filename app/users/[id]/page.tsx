@@ -98,7 +98,7 @@ function UserAuditLogs({ userId }: { userId: string }) {
       try {
         setLoading(true)
         const response = await api.get(`/admin/users/${userId}/audit-logs?page=${page}&limit=20`)
-        setLogs(response.data.logs)
+        setLogs(response.data.logs || [])
       } catch (error) {
         console.error('Error fetching audit logs:', error)
       } finally {
@@ -152,7 +152,7 @@ function UserAuditLogs({ userId }: { userId: string }) {
                 </td>
                 <td className="px-4 py-3">
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded">
-                    {log.action.replace(/_/g, ' ')}
+                    {log.action?.replace(/_/g, ' ') || 'Unknown Action'}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
@@ -220,7 +220,26 @@ export default function UserDetailPage() {
     try {
       setLoading(true)
       const response = await api.get(`/admin/users/${params.id}`)
-      setUser(response.data)
+      const userData = response.data
+      
+      // Ensure all array fields have default values
+      setUser({
+        ...userData,
+        clubs: userData.clubs || [],
+        userBadges: userData.userBadges || [],
+        skills: userData.skills || [],
+        interests: userData.interests || [],
+        activeMentorships: userData.activeMentorships || [],
+        mentorshipHistory: userData.mentorshipHistory || [],
+        _count: userData._count || {
+          posts: 0,
+          comments: 0,
+          eventsAttended: 0,
+          mentorships: 0,
+          reportsFiled: 0,
+          reportsAgainst: 0,
+        }
+      })
     } catch (error) {
       console.error('Error fetching user details:', error)
       alert('Failed to load user details')
@@ -606,7 +625,7 @@ export default function UserDetailPage() {
                   )}
 
                   {/* Clubs */}
-                  {user.clubs.length > 0 && (
+                  {user.clubs?.length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Clubs</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -624,7 +643,7 @@ export default function UserDetailPage() {
                   )}
 
                   {/* Badges */}
-                  {user.userBadges.length > 0 && (
+                  {user.userBadges?.length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Badges</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
