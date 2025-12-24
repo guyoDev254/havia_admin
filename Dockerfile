@@ -31,6 +31,9 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Ensure .next/static exists
+RUN mkdir -p .next/static
+
 # Copy necessary files from standalone build
 # Copy standalone build (includes server.js and necessary files)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
