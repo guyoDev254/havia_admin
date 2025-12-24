@@ -1,4 +1,4 @@
-name: Admin CI/CD
+name: Havia Admin CI/CD
 
 on:
   push:
@@ -32,9 +32,33 @@ jobs:
   build:
     name: Build Application
     runs-on: ubuntu-latest
+    outputs:
+      build_number: ${{ steps.build_number.outputs.build_number }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Generate Build Number
+        id: build_number
+        run: |
+          # Generate incremental build number based on date
+          DATE=$(date +%Y%m%d)
+          COUNTER_FILE=".build-counter-$DATE"
+          
+          # Read or initialize counter
+          if [ -f "$COUNTER_FILE" ]; then
+            COUNTER=$(cat "$COUNTER_FILE")
+            COUNTER=$((COUNTER + 1))
+          else
+            COUNTER=1
+          fi
+          
+          # Save new counter
+          echo $COUNTER > "$COUNTER_FILE"
+          
+          # Output build number
+          echo "build_number=$DATE-$COUNTER" >> $GITHUB_OUTPUT
+          echo "Build number: $DATE-$COUNTER"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -72,6 +96,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -89,10 +119,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev
           tags: |
-            type=ref,event=branch
-            type=sha,prefix=dev-,format=short
+            type=raw,value={{date 'YYYY.mm.dd'}}
+            type=raw,value={{date 'YYYY.mm.dd'}}-${{ needs.build.outputs.build_number }}
             type=raw,value=test-latest
-            type=raw,value=test-{{date 'YYYYMMDD'}}-{{sha}}
+            type=sha,prefix=dev-,format=short
 
       - name: Build and push Docker image (multi-platform)
         uses: docker/build-push-action@v5
@@ -120,6 +150,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -137,12 +173,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=ref,event=branch
-            type=sha,prefix=prod-,format=short
+            type=raw,value={{date 'YYYY.mm.dd'}}
+            type=raw,value={{date 'YYYY.mm.dd'}}-${{ needs.build.outputs.build_number }}
             type=raw,value=latest
-            type=raw,value=production-{{date 'YYYYMMDD'}}-{{sha}}
+            type=semver,pattern={{version}}
+            type=sha,prefix=prod-,format=short
 
       - name: Build and push Docker image (multi-platform)
         uses: docker/build-push-action@v5
