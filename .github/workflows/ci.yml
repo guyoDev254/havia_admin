@@ -26,9 +26,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  # ============================================
-  # Docker Build & Push - Test
-  # ============================================
   docker-build-test:
     name: Build & Push Docker Image (Test)
     runs-on: ubuntu-latest
@@ -39,25 +36,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Build Next.js application
-        run: yarn build
-        env:
-          NODE_ENV: production
-          NEXT_TELEMETRY_DISABLED: 1
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -76,12 +56,11 @@ jobs:
             type=raw,value=test-latest
             type=sha,prefix=dev-,format=short
 
-      - name: Build and push Docker image (multi-platform)
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -91,9 +70,6 @@ jobs:
             NODE_ENV=test
             NEXT_PUBLIC_API_URL=${{ secrets.TEST_API_URL }}
 
-  # ============================================
-  # Docker Build & Push - Production
-  # ============================================
   docker-build-production:
     name: Build & Push Docker Image (Production)
     runs-on: ubuntu-latest
@@ -104,25 +80,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Build Next.js application
-        run: yarn build
-        env:
-          NODE_ENV: production
-          NEXT_TELEMETRY_DISABLED: 1
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -142,12 +101,11 @@ jobs:
             type=semver,pattern={{version}}
             type=sha,prefix=prod-,format=short
 
-      - name: Build and push Docker image (multi-platform)
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -157,9 +115,6 @@ jobs:
             NODE_ENV=production
             NEXT_PUBLIC_API_URL=${{ secrets.PRODUCTION_API_URL }}
 
-  # ============================================
-  # Promote to Production
-  # ============================================
   create-pr-to-main:
     name: Create PR to Main
     runs-on: ubuntu-latest
