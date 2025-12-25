@@ -13,12 +13,44 @@ const BACKGROUND_MEDIA = [
     url: 'https://res.cloudinary.com/dabfdxbfj/image/upload/v1686428211/IMG_8631_ndwkt2.jpg',
   },
   {
-    type: 'image',
-    url: 'https://res.cloudinary.com/dabfdxbfj/image/upload/v1686430339/IMG_8657_yolykv.jpg',
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766637845/video1_dpj16u.mp4',
   },
   {
     type: 'video',
     url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1692039405/samples/elephants.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638377/video2_k0l7ly.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638813/video6_kaijl2.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638812/video5_ttgiso.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638813/video7_md9jxz.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638812/video4_gbzckb.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638812/video3_rxtl5e.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638813/video7_md9jxz.mp4',
+  },
+  {
+    type: 'video',
+    url: 'https://res.cloudinary.com/dymlg8elg/video/upload/v1766638812/video1_dpj16u.mp4',
   },
 ]
 
