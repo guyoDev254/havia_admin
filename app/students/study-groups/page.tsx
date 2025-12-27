@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
-import { Users2, Search, Eye, Trash2, Filter, Users } from 'lucide-react'
+import { Users2, Search, Eye, Trash2, Filter, Users, Edit } from 'lucide-react'
 import Link from 'next/link'
 
 interface StudyGroup {
@@ -97,7 +97,50 @@ export default function StudyGroupsPage() {
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">View and manage study groups</p>
               </div>
+              <PermissionGuard permission={Permission.MANAGE_CLUBS}>
+                <Link
+                  href="/students/study-groups/new"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Users2 className="h-5 w-5" />
+                  Create Study Group
+                </Link>
+              </PermissionGuard>
             </div>
+
+            {/* Stats */}
+            {!loading && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Total Groups</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    {groups.reduce((sum, g) => sum + 1, 0)}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Active Groups</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    {groups.filter(g => g.isActive).length}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Total Members</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    {groups.reduce((sum, g) => sum + (g._count?.members || 0), 0)}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Average Size</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    {groups.length > 0
+                      ? Math.round(
+                          groups.reduce((sum, g) => sum + (g._count?.members || 0), 0) / groups.length,
+                        )
+                      : 0}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Filters */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
@@ -161,7 +204,7 @@ export default function StudyGroupsPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -200,22 +243,31 @@ export default function StudyGroupsPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center gap-2">
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end gap-2">
                               <Link
                                 href={`/students/study-groups/${group.id}`}
-                                className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                                className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
                                 title="View"
                               >
                                 <Eye className="h-4 w-4" />
                               </Link>
-                              <button
-                                onClick={() => handleDelete(group.id)}
-                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              <PermissionGuard permission={Permission.MANAGE_CLUBS}>
+                                <Link
+                                  href={`/students/study-groups/${group.id}/edit`}
+                                  className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                                  title="Edit"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Link>
+                                <button
+                                  onClick={() => handleDelete(group.id)}
+                                  className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </PermissionGuard>
                             </div>
                           </td>
                         </tr>

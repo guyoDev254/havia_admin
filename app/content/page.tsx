@@ -13,9 +13,15 @@ import Link from 'next/link'
 interface Content {
   id: string
   title: string
+  description: string
   type: 'resource' | 'opportunity' | 'featured'
-  status: 'draft' | 'published'
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+  featured: boolean
+  image?: string
+  url?: string
+  tags?: string[]
   createdAt: string
+  publishedAt?: string | null
 }
 
 export default function ContentPage() {
@@ -33,10 +39,15 @@ export default function ContentPage() {
   const fetchContent = async () => {
     try {
       setLoading(true)
-      // Placeholder - would call actual endpoint
-      setContent([])
+      const response = await api.get('/content', {
+        params: {
+          limit: 100,
+        },
+      })
+      setContent(response.data.content || [])
     } catch (error) {
       console.error('Error fetching content:', error)
+      setContent([])
     } finally {
       setLoading(false)
     }
@@ -134,25 +145,75 @@ export default function ContentPage() {
                         <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
                           {item.type}
                         </span>
-                        <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          item.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' :
+                          item.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
                           {item.status}
                         </span>
+                        {item.featured && (
+                          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
+                            ⭐ Featured
+                          </span>
+                        )}
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">{item.title}</h3>
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{item.description}</p>
                       <p className="text-sm text-gray-500">
                         Created {new Date(item.createdAt).toLocaleDateString()}
+                        {item.publishedAt && ` • Published ${new Date(item.publishedAt).toLocaleDateString()}`}
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
+                      <button
+                        onClick={async () => {
+                          // TODO: Implement edit functionality
+                          alert('Edit functionality coming soon')
+                        }}
+                        className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <PermissionGuard permission={Permission.FEATURE_CONTENT}>
-                        <button className="p-2 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded-lg transition-colors">
-                          <Star className="h-4 w-4" />
+                      <PermissionGuard permission={Permission.CREATE_CONTENT}>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.put(`/content/${item.id}`, {
+                                featured: !item.featured,
+                              })
+                              fetchContent()
+                            } catch (error) {
+                              console.error('Error toggling featured:', error)
+                              alert('Failed to update featured status')
+                            }
+                          }}
+                          className={`p-2 rounded-lg transition-colors ${
+                            item.featured
+                              ? 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50'
+                              : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'
+                          }`}
+                          title={item.featured ? 'Remove from featured' : 'Feature content'}
+                        >
+                          <Star className={`h-4 w-4 ${item.featured ? 'fill-current' : ''}`} />
                         </button>
                       </PermissionGuard>
-                      <button className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors">
+                      <button
+                        onClick={async () => {
+                          if (confirm('Are you sure you want to delete this content?')) {
+                            try {
+                              await api.delete(`/content/${item.id}`)
+                              fetchContent()
+                            } catch (error) {
+                              console.error('Error deleting content:', error)
+                              alert('Failed to delete content')
+                            }
+                          }
+                        }}
+                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

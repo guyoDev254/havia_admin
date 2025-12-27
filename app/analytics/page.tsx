@@ -205,13 +205,57 @@ export default function AnalyticsPage() {
                 <FileText className="h-6 w-6 text-gray-400" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left">
-                  <p className="font-semibold text-gray-900 mb-1">User Growth Report</p>
-                  <p className="text-sm text-gray-600">Export user statistics and growth trends</p>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await api.get('/admin/analytics/export', { responseType: 'blob' })
+                      const url = window.URL.createObjectURL(new Blob([response.data]))
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.setAttribute('download', `analytics-${new Date().toISOString().split('T')[0]}.csv`)
+                      document.body.appendChild(link)
+                      link.click()
+                      link.remove()
+                    } catch (error) {
+                      console.error('Error exporting analytics:', error)
+                      alert('Failed to export analytics')
+                    }
+                  }}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900 mb-1">Analytics Export</p>
+                      <p className="text-sm text-gray-600">Export all analytics data as CSV</p>
+                    </div>
+                    <Download className="h-5 w-5 text-gray-400" />
+                  </div>
                 </button>
-                <button className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left">
-                  <p className="font-semibold text-gray-900 mb-1">Engagement Report</p>
-                  <p className="text-sm text-gray-600">Platform engagement metrics</p>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await api.get('/admin/users/export/all', { responseType: 'blob' })
+                      const url = window.URL.createObjectURL(new Blob([response.data]))
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.setAttribute('download', `users-export-${new Date().toISOString().split('T')[0]}.csv`)
+                      document.body.appendChild(link)
+                      link.click()
+                      link.remove()
+                    } catch (error) {
+                      console.error('Error exporting users:', error)
+                      alert('Failed to export users')
+                    }
+                  }}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900 mb-1">User Export</p>
+                      <p className="text-sm text-gray-600">Export all users data as CSV</p>
+                    </div>
+                    <Download className="h-5 w-5 text-gray-400" />
+                  </div>
                 </button>
                 <button className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left">
                   <p className="font-semibold text-gray-900 mb-1">Content Report</p>

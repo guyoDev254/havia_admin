@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
-import { GraduationCap, Search, Filter, Eye, Mail, Phone, MapPin, School, Calendar } from 'lucide-react'
+import { GraduationCap, Search, Filter, Eye, Mail, Phone, MapPin, School, Calendar, BarChart3, Download, UserX, UserCheck, Edit, Trash2, MoreVertical } from 'lucide-react'
 import Link from 'next/link'
 
 interface Student {
@@ -32,6 +32,7 @@ interface Student {
     achievements: string[]
     extracurriculars: string[]
   }
+  isActive?: boolean
 }
 
 export default function StudentsPage() {
@@ -42,14 +43,18 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [educationLevelFilter, setEducationLevelFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<string>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (user) {
       fetchStudents()
     }
-  }, [user, page, search, educationLevelFilter])
+  }, [user, page, search, educationLevelFilter, statusFilter, sortBy, sortOrder])
 
   const fetchStudents = async () => {
     try {
@@ -60,6 +65,9 @@ export default function StudentsPage() {
       }
       if (search) params.search = search
       if (educationLevelFilter !== 'all') params.educationLevel = educationLevelFilter
+      if (statusFilter !== 'all') params.status = statusFilter
+      if (sortBy) params.sortBy = sortBy
+      if (sortOrder) params.sortOrder = sortOrder
 
       const response = await api.get('/admin/students', { params })
       setStudents(response.data.students)
@@ -86,6 +94,61 @@ export default function StudentsPage() {
     )
   }
 
+  const handleSuspend = async (studentId: string) => {
+    if (!confirm('Are you sure you want to suspend this student?')) return
+    try {
+      await api.post(`/admin/users/${studentId}/suspend`, { reason: 'Suspended by admin' })
+      alert('Student suspended successfully')
+      fetchStudents()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to suspend student')
+    }
+  }
+
+  const handleActivate = async (studentId: string) => {
+    try {
+      await api.post(`/admin/users/${studentId}/activate`)
+      alert('Student activated successfully')
+      fetchStudents()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to activate student')
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedStudents.size === 0) {
+      alert('Please select students to delete')
+      return
+    }
+    if (!confirm(`Are you sure you want to delete ${selectedStudents.size} student(s)?`)) return
+    try {
+      await Promise.all(Array.from(selectedStudents).map(id => api.delete(`/admin/users/${id}`)))
+      alert('Students deleted successfully')
+      setSelectedStudents(new Set())
+      fetchStudents()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to delete students')
+    }
+  }
+
+  const toggleSelectStudent = (studentId: string) => {
+    const newSelected = new Set(selectedStudents)
+    if (newSelected.has(studentId)) {
+      newSelected.delete(studentId)
+    } else {
+      newSelected.add(studentId)
+    }
+    setSelectedStudents(newSelected)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedStudents.size === students.length) {
+      setSelectedStudents(new Set())
+    } else {
+      setSelectedStudents(new Set(students.map(s => s.id)))
+    }
+  }
+
   return (
     <ProtectedRoute>
       <PermissionGuard permission={Permission.VIEW_USERS}>
@@ -98,6 +161,36 @@ export default function StudentsPage() {
                   Students Management
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">Manage all student accounts and profiles</p>
+              </div>
+              <div className="flex gap-3">
+                <Link
+                  href="/students/analytics"
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </Link>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await api.get('/admin/students/export', { responseType: 'blob' })
+                      const url = window.URL.createObjectURL(new Blob([response.data]))
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.setAttribute('download', `students-export-${new Date().toISOString().split('T')[0]}.csv`)
+                      document.body.appendChild(link)
+                      link.click()
+                      link.remove()
+                    } catch (error) {
+                      console.error('Error exporting students:', error)
+                      alert('Failed to export students')
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </button>
               </div>
             </div>
 
@@ -162,8 +255,68 @@ export default function StudentsPage() {
                     <option value="OUT_OF_SCHOOL">Out of school</option>
                   </select>
                 </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value)
+                    setPage(1)
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="createdAt">Sort by: Join Date</option>
+                  <option value="firstName">Sort by: Name</option>
+                  <option value="schoolName">Sort by: School</option>
+                </select>
+                <button
+                  onClick={() => {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                    setPage(1)
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  title={sortOrder === 'asc' ? 'Sort Descending' : 'Sort Ascending'}
+                >
+                  {sortOrder === 'asc' ? '↑' : '↓'}
+                </button>
               </div>
             </div>
+
+            {/* Bulk Actions */}
+            {selectedStudents.size > 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center justify-between">
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {selectedStudents.size} student(s) selected
+                </span>
+                <div className="flex gap-2">
+                  <PermissionGuard permission={Permission.MANAGE_USERS}>
+                    <button
+                      onClick={handleBulkDelete}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Selected
+                    </button>
+                  </PermissionGuard>
+                  <button
+                    onClick={() => setSelectedStudents(new Set())}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Students Table */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
@@ -177,7 +330,18 @@ export default function StudentsPage() {
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            checked={selectedStudents.size === students.length && students.length > 0}
+                            onChange={toggleSelectAll}
+                            className="rounded border-gray-300"
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Student
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Status
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           School
@@ -188,7 +352,7 @@ export default function StudentsPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Details
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -196,6 +360,15 @@ export default function StudentsPage() {
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {students.map((student) => (
                         <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudents.has(student.id)}
+                              onChange={() => toggleSelectStudent(student.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="rounded border-gray-300"
+                            />
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-3">
                               {student.profileImage ? (
@@ -268,14 +441,61 @@ export default function StudentsPage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <Link
-                              href={`/students/${student.id}`}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 py-1 text-xs rounded ${
+                                student.isActive !== false
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}
                             >
-                              <Eye className="h-4 w-4" />
-                              View
-                            </Link>
+                              {student.isActive !== false ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end gap-2">
+                              <Link
+                                href={`/students/${student.id}`}
+                                className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                                title="View"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                              <PermissionGuard permission={Permission.MANAGE_USERS}>
+                                <Link
+                                  href={`/students/${student.id}/edit`}
+                                  className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                                  title="Edit"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Link>
+                              </PermissionGuard>
+                              <PermissionGuard permission={Permission.SUSPEND_USERS}>
+                                {student.isActive !== false ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleSuspend(student.id)
+                                    }}
+                                    className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 p-1 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded"
+                                    title="Suspend"
+                                  >
+                                    <UserX className="h-4 w-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleActivate(student.id)
+                                    }}
+                                    className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                                    title="Activate"
+                                  >
+                                    <UserCheck className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </PermissionGuard>
+                            </div>
                           </td>
                         </tr>
                       ))}
