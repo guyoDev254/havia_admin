@@ -24,6 +24,9 @@ export default function NewClubPage() {
     category: 'TECH',
     isPublic: true,
     logo: '',
+    problemStatement: 'Official NorthernBox club',
+    targetAudience: 'All community members',
+    plannedActivities: 'Regular meetings and activities as planned by club leadership',
   })
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,12 +61,24 @@ export default function NewClubPage() {
     e.preventDefault()
     try {
       setLoading(true)
-      await api.post('/clubs', formData)
+      // Send required fields for official club creation
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        logo: formData.logo || undefined,
+        isPublic: formData.isPublic,
+        problemStatement: formData.problemStatement,
+        targetAudience: formData.targetAudience,
+        plannedActivities: formData.plannedActivities,
+      }
+      await api.post('/clubs/official', payload)
       await showSuccess('Club Created', 'The club has been created successfully!')
       router.push('/clubs')
     } catch (error: any) {
       console.error('Error creating club:', error)
-      showError('Creation Failed', error.response?.data?.message || 'Failed to create club')
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to create club'
+      showError('Creation Failed', errorMessage)
     } finally {
       setLoading(false)
     }

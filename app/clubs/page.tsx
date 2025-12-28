@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
 import { useSweetAlert } from '@/hooks/useSweetAlert'
+import { useDebounce } from '@/hooks/useDebounce'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -33,20 +35,27 @@ export default function ClubsPage() {
   const { showSuccess, showError, showConfirm } = useSweetAlert()
   const [clubs, setClubs] = useState<Club[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const prevFiltersRef = useRef({
+    page: 1,
+    statusFilter: '',
+    debouncedSearch: '',
+  })
+  const isInitialMount = useRef(true)
 
-  useEffect(() => {
-    if (user) {
-      fetchClubs()
-    }
-  }, [user, page, statusFilter])
-
-  const fetchClubs = async () => {
+  const fetchClubs = async (isSearchUpdate: boolean = false) => {
     try {
-      setLoading(true)
+      if (isSearchUpdate) {
+        setSearchLoading(true)
+      } else {
+        setLoading(true)
+      }
+      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
@@ -57,11 +66,11 @@ export default function ClubsPage() {
       const response = await api.get(`/admin/clubs?${params}`)
       let filteredClubs = response.data.clubs
       
-      if (search) {
+      if (debouncedSearch) {
         filteredClubs = filteredClubs.filter(
           (club: Club) =>
-            club.name.toLowerCase().includes(search.toLowerCase()) ||
-            club.description?.toLowerCase().includes(search.toLowerCase())
+            club.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+            club.description?.toLowerCase().includes(debouncedSearch.toLowerCase())
         )
       }
       
@@ -70,9 +79,42 @@ export default function ClubsPage() {
     } catch (error) {
       console.error('Error fetching clubs:', error)
     } finally {
-      setLoading(false)
+      if (isSearchUpdate) {
+        setSearchLoading(false)
+      } else {
+        setLoading(false)
+      }
     }
   }
+
+  useEffect(() => {
+    if (!user) return
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      prevFiltersRef.current = {
+        page,
+        statusFilter,
+        debouncedSearch,
+      }
+      fetchClubs(false)
+      return
+    }
+    
+    const prev = prevFiltersRef.current
+    const onlySearchChanged = 
+      prev.debouncedSearch !== debouncedSearch &&
+      prev.page === page &&
+      prev.statusFilter === statusFilter
+    
+    prevFiltersRef.current = {
+      page,
+      statusFilter,
+      debouncedSearch,
+    }
+    
+    fetchClubs(onlySearchChanged)
+  }, [user, page, statusFilter, debouncedSearch])
 
   const handleApprove = async (clubId: string) => {
     try {
@@ -129,9 +171,7 @@ export default function ClubsPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading...</div>
-          </div>
+          <LoadingSpinner message="Loading clubs..." showProgress={true} fullScreen={false} />
         </Layout>
       </ProtectedRoute>
     )
@@ -173,6 +213,12 @@ export default function ClubsPage() {
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
             <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {searchLoading && (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                </div>
+              )}
               <input
                 type="text"
                 placeholder="Search clubs..."
@@ -182,8 +228,8 @@ export default function ClubsPage() {
                   setPage(1)
                 }}
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                style={{ paddingRight: searchLoading ? '3rem' : '1rem' }}
               />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

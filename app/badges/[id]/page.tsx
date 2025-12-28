@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { ArrowLeft, Edit2, Save, X, Award } from 'lucide-react'
@@ -27,6 +29,7 @@ export default function BadgeDetailPage() {
   const router = useRouter()
   const params = useParams()
   const { user } = useAuth()
+  const { showError, showSuccess } = useSweetAlert()
   const badgeId = params.id as string
 
   const [badgeDetail, setBadgeDetail] = useState<BadgeDetail | null>(null)
@@ -66,11 +69,12 @@ export default function BadgeDetailPage() {
   const handleSave = async () => {
     try {
       await api.put(`/admin/badges/${badgeId}`, formData)
+      showSuccess('Badge Updated', 'The badge has been updated successfully')
       setEditing(false)
       fetchBadgeDetail()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating badge:', error)
-      alert('Failed to update badge')
+      showError('Failed to Update Badge', error.response?.data?.message || 'An error occurred while updating the badge')
     }
   }
 
@@ -78,9 +82,7 @@ export default function BadgeDetailPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading...</div>
-          </div>
+          <LoadingSpinner message="Loading badge details..." showProgress={true} fullScreen={false} />
         </Layout>
       </ProtectedRoute>
     )

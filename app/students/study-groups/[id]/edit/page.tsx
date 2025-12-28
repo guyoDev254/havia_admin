@@ -10,6 +10,7 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { Permission } from '@/hooks/usePermissions'
 import { Users2, ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface StudyGroup {
   id: string
@@ -25,6 +26,7 @@ export default function EditStudyGroupPage() {
   const router = useRouter()
   const params = useParams()
   const { user } = useAuth()
+  const { showError, showSuccess, showWarning } = useSweetAlert()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -57,7 +59,7 @@ export default function EditStudyGroupPage() {
       })
     } catch (error) {
       console.error('Error fetching study group:', error)
-      alert('Failed to load study group')
+      showError('Failed to load study group')
     } finally {
       setLoading(false)
     }
@@ -65,25 +67,25 @@ export default function EditStudyGroupPage() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('Group name is required')
+      showWarning('Validation Error', 'Group name is required')
       return
     }
     if (!formData.description.trim()) {
-      alert('Description is required')
+      showWarning('Validation Error', 'Description is required')
       return
     }
     if (!formData.subject.trim()) {
-      alert('Subject is required')
+      showWarning('Validation Error', 'Subject is required')
       return
     }
 
     try {
       setSaving(true)
       await api.put(`/admin/study-groups/${params.id}`, formData)
-      alert('Study group updated successfully')
+      showSuccess('Study group updated successfully')
       router.push(`/students/study-groups/${params.id}`)
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to update study group')
+      showError('Failed to update study group', error.response?.data?.message)
     } finally {
       setSaving(false)
     }

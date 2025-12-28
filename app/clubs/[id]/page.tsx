@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -45,6 +47,7 @@ export default function ClubDetailPage() {
   const params = useParams()
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
+  const { showError, showSuccess, showWarning, showConfirm } = useSweetAlert()
   const clubId = params.id as string
 
   const [clubDetail, setClubDetail] = useState<ClubDetail | null>(null)
@@ -225,37 +228,47 @@ export default function ClubDetailPage() {
       await api.put(`/admin/clubs/${clubId}`, formData)
       setEditing(false)
       fetchClubDetail()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating club:', error)
-      alert('Failed to update club')
+      showError('Failed to Update Club', error.response?.data?.message || 'An error occurred while updating the club')
     }
   }
 
   const handleAssignManager = async () => {
     if (!assignUserId) {
-      alert('Please select a user')
+      showWarning('Validation Error', 'Please select a user')
       return
     }
 
     try {
       await api.post(`/clubs/${clubId}/managers`, { userId: assignUserId })
+      showSuccess('Manager Assigned', 'The manager has been assigned successfully')
       setShowAssignManager(false)
       setAssignUserId('')
       fetchManagers()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to assign manager')
+      showError('Failed to Assign Manager', error.response?.data?.message || 'An error occurred while assigning the manager')
     }
   }
 
   const handleRemoveManager = async (userId: string) => {
-    if (!confirm('Are you sure you want to remove this manager?')) return
+    const confirmed = await showConfirm(
+      'Remove Manager',
+      'Are you sure you want to remove this manager?',
+      'Yes, remove',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/clubs/${clubId}/managers/${userId}`)
+      showSuccess('Manager Removed', 'The manager has been removed successfully')
       fetchManagers()
       fetchMembers() // Refresh members list
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to remove manager')
+      showError('Failed to Remove Manager', error.response?.data?.message || 'An error occurred while removing the manager')
     }
   }
 
@@ -264,24 +277,32 @@ export default function ClubDetailPage() {
 
     try {
       await api.put(`/clubs/${clubId}/members/${selectedMember.id}/role`, { role: newRole })
+      showSuccess('Role Updated', 'Member role has been updated successfully')
       setShowRoleModal(false)
       setSelectedMember(null)
       fetchMembers()
-      alert('Member role updated successfully')
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to update member role')
+      showError('Failed to Update Role', error.response?.data?.message || 'An error occurred while updating the member role')
     }
   }
 
   const handleRemoveMember = async (memberId: string) => {
-    if (!confirm('Are you sure you want to remove this member from the club?')) return
+    const confirmed = await showConfirm(
+      'Remove Member',
+      'Are you sure you want to remove this member from the club?',
+      'Yes, remove',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/clubs/${clubId}/members/${memberId}`)
+      showSuccess('Member Removed', 'The member has been removed successfully')
       fetchMembers()
-      alert('Member removed successfully')
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to remove member')
+      showError('Failed to Remove Member', error.response?.data?.message || 'An error occurred while removing the member')
     }
   }
 
@@ -303,11 +324,11 @@ export default function ClubDetailPage() {
       
       // Update club immediately
       await api.put(`/admin/clubs/${clubId}`, { logo: logoUrl })
+      showSuccess('Logo Uploaded', 'The logo has been uploaded successfully')
       fetchClubDetail()
-      alert('Logo uploaded successfully')
     } catch (error: any) {
       console.error('Error uploading logo:', error)
-      alert(error.response?.data?.message || 'Failed to upload logo')
+      showError('Failed to Upload Logo', error.response?.data?.message || 'An error occurred while uploading the logo')
     } finally {
       setUploadingLogo(false)
     }
@@ -331,11 +352,11 @@ export default function ClubDetailPage() {
       
       // Update club immediately
       await api.put(`/admin/clubs/${clubId}`, { banner: bannerUrl })
+      showSuccess('Banner Uploaded', 'The banner has been uploaded successfully')
       fetchClubDetail()
-      alert('Banner uploaded successfully')
     } catch (error: any) {
       console.error('Error uploading banner:', error)
-      alert(error.response?.data?.message || 'Failed to upload banner')
+      showError('Failed to Upload Banner', error.response?.data?.message || 'An error occurred while uploading the banner')
     } finally {
       setUploadingBanner(false)
     }
@@ -345,9 +366,7 @@ export default function ClubDetailPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading...</div>
-          </div>
+          <LoadingSpinner message="Loading club details..." showProgress={true} fullScreen={false} />
         </Layout>
       </ProtectedRoute>
     )
@@ -755,7 +774,9 @@ export default function ClubDetailPage() {
                     </button>
                   </div>
                   {loadingPrograms ? (
-                    <div className="text-center py-8 text-gray-500">Loading programs...</div>
+                    <div className="text-center py-8">
+                      <LoadingSpinner message="Loading programs..." showProgress={true} size="sm" fullScreen={false} />
+                    </div>
                   ) : programs.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">No programs yet</div>
                   ) : (
@@ -816,7 +837,9 @@ export default function ClubDetailPage() {
                     </button>
                   </div>
                   {loadingResources ? (
-                    <div className="text-center py-8 text-gray-500">Loading resources...</div>
+                    <div className="text-center py-8">
+                      <LoadingSpinner message="Loading resources..." showProgress={true} size="sm" fullScreen={false} />
+                    </div>
                   ) : resources.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">No resources yet</div>
                   ) : (
@@ -895,7 +918,9 @@ export default function ClubDetailPage() {
                 <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                   <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Club Analytics</h2>
                   {loadingAnalytics ? (
-                    <div className="text-center py-8 text-gray-500">Loading analytics...</div>
+                    <div className="text-center py-8">
+                      <LoadingSpinner message="Loading analytics..." showProgress={true} size="sm" fullScreen={false} />
+                    </div>
                   ) : analytics ? (
                     <div className="space-y-6">
                       {/* Overview Stats */}
@@ -1097,13 +1122,19 @@ export default function ClubDetailPage() {
                         <>
                           <button
                             onClick={async () => {
-                              if (confirm('Approve this club application?')) {
+                              const confirmed = await showConfirm(
+                                'Approve Club',
+                                'Approve this club application?',
+                                'Yes, approve',
+                                'Cancel'
+                              )
+                              if (confirmed) {
                                 try {
                                   await api.post(`/clubs/${clubId}/approve`, { probationDays: 60 })
-                                  alert('Club approved')
+                                  showSuccess('Club Approved', 'The club has been approved successfully')
                                   fetchClubDetail()
                                 } catch (error: any) {
-                                  alert(error.response?.data?.message || 'Failed to approve')
+                                  showError('Failed to Approve', error.response?.data?.message || 'An error occurred while approving the club')
                                 }
                               }
                             }}
@@ -1114,14 +1145,24 @@ export default function ClubDetailPage() {
                           </button>
                           <button
                             onClick={async () => {
-                              const reason = prompt('Enter rejection reason:')
-                              if (reason) {
+                              const confirmed = await showConfirm(
+                                'Reject Club',
+                                'Are you sure you want to reject this club?',
+                                'Yes, reject',
+                                'Cancel',
+                                '#dc2626',
+                                true
+                              )
+                              if (!confirmed) return
+                              
+                              const reasonInput = window.prompt('Enter rejection reason:')
+                              if (reasonInput) {
                                 try {
-                                  await api.post(`/clubs/${clubId}/reject`, { reason })
-                                  alert('Club rejected')
+                                  await api.post(`/clubs/${clubId}/reject`, { reason: reasonInput })
+                                  showSuccess('Club Rejected', 'The club has been rejected')
                                   fetchClubDetail()
                                 } catch (error: any) {
-                                  alert(error.response?.data?.message || 'Failed to reject')
+                                  showError('Failed to Reject', error.response?.data?.message || 'An error occurred while rejecting the club')
                                 }
                               }
                             }}
@@ -1135,13 +1176,19 @@ export default function ClubDetailPage() {
                       {clubDetail.status === 'PILOT' && (
                         <button
                           onClick={async () => {
-                            if (confirm('Activate this pilot club to active status?')) {
+                            const confirmed = await showConfirm(
+                              'Activate Club',
+                              'Activate this pilot club to active status?',
+                              'Yes, activate',
+                              'Cancel'
+                            )
+                            if (confirmed) {
                               try {
                                 await api.post(`/clubs/${clubId}/activate`)
-                                alert('Club activated')
+                                showSuccess('Club Activated', 'The club has been activated successfully')
                                 fetchClubDetail()
                               } catch (error: any) {
-                                alert(error.response?.data?.message || 'Failed to activate')
+                                showError('Failed to Activate', error.response?.data?.message || 'An error occurred while activating the club')
                               }
                             }
                           }}
@@ -1154,13 +1201,21 @@ export default function ClubDetailPage() {
                       {clubDetail.status !== 'FROZEN' && clubDetail.status !== 'ARCHIVED' && (
                         <button
                           onClick={async () => {
-                            if (confirm('Freeze this club? It will temporarily stop accepting new members.')) {
+                            const confirmed = await showConfirm(
+                              'Freeze Club',
+                              'Freeze this club? It will temporarily stop accepting new members.',
+                              'Yes, freeze',
+                              'Cancel',
+                              '#dc2626',
+                              true
+                            )
+                            if (confirmed) {
                               try {
                                 await api.post(`/clubs/${clubId}/freeze`)
-                                alert('Club frozen')
+                                showSuccess('Club Frozen', 'The club has been frozen successfully')
                                 fetchClubDetail()
                               } catch (error: any) {
-                                alert(error.response?.data?.message || 'Failed to freeze')
+                                showError('Failed to Freeze', error.response?.data?.message || 'An error occurred while freezing the club')
                               }
                             }
                           }}
@@ -1173,14 +1228,22 @@ export default function ClubDetailPage() {
                       {clubDetail.status !== 'ARCHIVED' && (
                         <button
                           onClick={async () => {
-                            const reason = prompt('Enter archive reason (optional):')
-                            if (confirm('Archive this club? This action can be reversed later.')) {
+                            const reasonInput = window.prompt('Enter archive reason (optional):')
+                            const confirmed = await showConfirm(
+                              'Archive Club',
+                              'Archive this club? This action can be reversed later.',
+                              'Yes, archive',
+                              'Cancel',
+                              '#dc2626',
+                              true
+                            )
+                            if (confirmed) {
                               try {
-                                await api.post(`/clubs/${clubId}/archive`, { reason: reason || undefined })
-                                alert('Club archived')
+                                await api.post(`/clubs/${clubId}/archive`, { reason: reasonInput || undefined })
+                                showSuccess('Club Archived', 'The club has been archived successfully')
                                 fetchClubDetail()
                               } catch (error: any) {
-                                alert(error.response?.data?.message || 'Failed to archive')
+                                showError('Failed to Archive', error.response?.data?.message || 'An error occurred while archiving the club')
                               }
                             }
                           }}

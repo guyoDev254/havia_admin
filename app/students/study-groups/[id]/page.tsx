@@ -10,6 +10,7 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { Permission } from '@/hooks/usePermissions'
 import { Users2, ArrowLeft, Edit, Trash2, UserX, Mail, School, Calendar, MapPin } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface StudyGroup {
   id: string
@@ -44,6 +45,7 @@ export default function StudyGroupDetailPage() {
   const router = useRouter()
   const params = useParams()
   const { user } = useAuth()
+  const { showError, showSuccess, showConfirm } = useSweetAlert()
   const [group, setGroup] = useState<StudyGroup | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -60,33 +62,49 @@ export default function StudyGroupDetailPage() {
       setGroup(response.data)
     } catch (error) {
       console.error('Error fetching study group:', error)
-      alert('Failed to load study group')
+      showError('Failed to load study group')
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete "${group?.name}"? This action cannot be undone.`)) return
+    const confirmed = await showConfirm(
+      'Delete Study Group',
+      `Are you sure you want to delete "${group?.name}"? This action cannot be undone.`,
+      'Yes, delete it',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/study-groups/${params.id}`)
-      alert('Study group deleted successfully')
+      showSuccess('Study group deleted successfully')
       router.push('/students/study-groups')
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to delete study group')
+      showError('Failed to delete study group', error.response?.data?.message)
     }
   }
 
   const handleRemoveMember = async (userId: string, userName: string) => {
-    if (!confirm(`Remove ${userName} from this study group?`)) return
+    const confirmed = await showConfirm(
+      'Remove Member',
+      `Remove ${userName} from this study group?`,
+      'Yes, remove',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.post(`/admin/study-groups/${params.id}/members/${userId}/remove`)
-      alert('Member removed successfully')
+      showSuccess('Member removed successfully')
       fetchGroup()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to remove member')
+      showError('Failed to remove member', error.response?.data?.message)
     }
   }
 
@@ -97,7 +115,7 @@ export default function StudyGroupDetailPage() {
       })
       fetchGroup()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to update status')
+      showError('Failed to update status', error.response?.data?.message)
     }
   }
 

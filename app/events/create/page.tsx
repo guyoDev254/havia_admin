@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -14,6 +15,7 @@ const EVENT_STATUSES = ['UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED']
 export default function CreateEventPage({ searchParams }: { searchParams?: { clubId?: string } }) {
   const router = useRouter()
   const { user } = useAuth()
+  const { showError, showSuccess, showWarning } = useSweetAlert()
   const [loading, setLoading] = useState(false)
   const [clubId, setClubId] = useState<string | null>(null)
   const [clubName, setClubName] = useState<string>('')
@@ -76,28 +78,28 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
     e.preventDefault()
     
     if (!formData.title.trim()) {
-      alert('Please enter an event title')
+      showWarning('Validation Error', 'Please enter an event title')
       return
     }
 
     if (!formData.startDate) {
-      alert('Please select a start date')
+      showWarning('Validation Error', 'Please select a start date')
       return
     }
 
     if (formData.isPaid) {
       if (!formData.price || parseFloat(formData.price) <= 0) {
-        alert('Please enter a valid price for paid events')
+        showWarning('Validation Error', 'Please enter a valid price for paid events')
         return
       }
       if (!formData.paymentLink?.trim()) {
-        alert('Please provide a payment link for paid events')
+        showWarning('Validation Error', 'Please provide a payment link for paid events')
         return
       }
     }
 
     if (formData.isOnline && !formData.onlineLink?.trim()) {
-      alert('Please provide an online link for virtual events')
+      showWarning('Validation Error', 'Please provide an online link for virtual events')
       return
     }
 
@@ -131,11 +133,11 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
         // Don't include clubId in payload for Havia events
         await api.post('/events', payload)
       }
-      alert('Event created successfully!')
+      await showSuccess('Event Created', 'Event created successfully!')
       router.push('/events')
     } catch (error: any) {
       console.error('Error creating event:', error)
-      alert(error.response?.data?.message || error.message || 'Failed to create event')
+      showError('Failed to Create Event', error.response?.data?.message || error.message || 'An error occurred while creating the event')
     } finally {
       setLoading(false)
     }

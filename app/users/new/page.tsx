@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -34,6 +35,7 @@ export default function CreateUserPage() {
   const router = useRouter()
   const { user: currentUser } = useAuth()
   const { isSuperAdmin } = usePermissions()
+  const { showError, showSuccess } = useSweetAlert()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -65,11 +67,11 @@ export default function CreateUserPage() {
       }
 
       await api.post('/admin/users', payload)
-      alert('User created successfully! Password and verification email have been sent.')
+      await showSuccess('User Created', 'User created successfully! Password and verification email have been sent.')
       router.push('/users')
     } catch (error: any) {
       console.error('Error creating user:', error)
-      alert(error.response?.data?.message || 'Failed to create user')
+      showError('Failed to Create User', error.response?.data?.message || 'An error occurred while creating the user')
     } finally {
       setLoading(false)
     }

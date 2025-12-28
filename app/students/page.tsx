@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useDebounce } from '@/hooks/useDebounce'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import { GraduationCap, Search, Filter, Eye, Mail, Phone, MapPin, School, Calendar, BarChart3, Download, UserX, UserCheck, Edit, Trash2, MoreVertical } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface Student {
   id: string
@@ -39,9 +42,12 @@ export default function StudentsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
+  const { showSuccess, showError, showWarning, showConfirm } = useSweetAlert()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [educationLevelFilter, setEducationLevelFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('createdAt')
@@ -49,21 +55,29 @@ export default function StudentsPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
+  const prevFiltersRef = useRef({
+    page: 1,
+    educationLevelFilter: 'all',
+    statusFilter: 'all',
+    sortBy: 'createdAt',
+    sortOrder: 'desc' as 'asc' | 'desc',
+    debouncedSearch: '',
+  })
+  const isInitialMount = useRef(true)
 
-  useEffect(() => {
-    if (user) {
-      fetchStudents()
-    }
-  }, [user, page, search, educationLevelFilter, statusFilter, sortBy, sortOrder])
-
-  const fetchStudents = async () => {
+  const fetchStudents = async (isSearchUpdate: boolean = false) => {
     try {
-      setLoading(true)
+      if (isSearchUpdate) {
+        setSearchLoading(true)
+      } else {
+        setLoading(true)
+      }
+      
       const params: any = {
         page,
         limit: 20,
       }
-      if (search) params.search = search
+      if (debouncedSearch) params.search = debouncedSearch
       if (educationLevelFilter !== 'all') params.educationLevel = educationLevelFilter
       if (statusFilter !== 'all') params.status = statusFilter
       if (sortBy) params.sortBy = sortBy
@@ -75,9 +89,51 @@ export default function StudentsPage() {
     } catch (error) {
       console.error('Error fetching students:', error)
     } finally {
-      setLoading(false)
+      if (isSearchUpdate) {
+        setSearchLoading(false)
+      } else {
+        setLoading(false)
+      }
     }
   }
+
+  useEffect(() => {
+    if (!user) return
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      prevFiltersRef.current = {
+        page,
+        educationLevelFilter,
+        statusFilter,
+        sortBy,
+        sortOrder,
+        debouncedSearch,
+      }
+      fetchStudents(false)
+      return
+    }
+    
+    const prev = prevFiltersRef.current
+    const onlySearchChanged = 
+      prev.debouncedSearch !== debouncedSearch &&
+      prev.page === page &&
+      prev.educationLevelFilter === educationLevelFilter &&
+      prev.statusFilter === statusFilter &&
+      prev.sortBy === sortBy &&
+      prev.sortOrder === sortOrder
+    
+    prevFiltersRef.current = {
+      page,
+      educationLevelFilter,
+      statusFilter,
+      sortBy,
+      sortOrder,
+      debouncedSearch,
+    }
+    
+    fetchStudents(onlySearchChanged)
+  }, [user, page, debouncedSearch, educationLevelFilter, statusFilter, sortBy, sortOrder])
 
   const getEducationLevelBadge = (type?: string) => {
     if (!type) return null
@@ -95,39 +151,55 @@ export default function StudentsPage() {
   }
 
   const handleSuspend = async (studentId: string) => {
-    if (!confirm('Are you sure you want to suspend this student?')) return
+    const confirmed = await showConfirm(
+      'Suspend Student',
+      'Are you sure you want to suspend this student?',
+      'Yes, suspend',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
     try {
       await api.post(`/admin/users/${studentId}/suspend`, { reason: 'Suspended by admin' })
-      alert('Student suspended successfully')
+      showSuccess('Student suspended successfully')
       fetchStudents()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to suspend student')
+      showError('Failed to suspend student', error.response?.data?.message)
     }
   }
 
   const handleActivate = async (studentId: string) => {
     try {
       await api.post(`/admin/users/${studentId}/activate`)
-      alert('Student activated successfully')
+      showSuccess('Student activated successfully')
       fetchStudents()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to activate student')
+      showError('Failed to activate student', error.response?.data?.message)
     }
   }
 
   const handleBulkDelete = async () => {
     if (selectedStudents.size === 0) {
-      alert('Please select students to delete')
+      showWarning('No Selection', 'Please select students to delete')
       return
     }
-    if (!confirm(`Are you sure you want to delete ${selectedStudents.size} student(s)?`)) return
+    const confirmed = await showConfirm(
+      'Delete Students',
+      `Are you sure you want to delete ${selectedStudents.size} student(s)?`,
+      'Yes, delete them',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
     try {
       await Promise.all(Array.from(selectedStudents).map(id => api.delete(`/admin/users/${id}`)))
-      alert('Students deleted successfully')
+      showSuccess('Students deleted successfully')
       setSelectedStudents(new Set())
       fetchStudents()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to delete students')
+      showError('Failed to delete students', error.response?.data?.message)
     }
   }
 
@@ -183,7 +255,7 @@ export default function StudentsPage() {
                       link.remove()
                     } catch (error) {
                       console.error('Error exporting students:', error)
-                      alert('Failed to export students')
+                      showError('Failed to export students')
                     }
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -227,6 +299,11 @@ export default function StudentsPage() {
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  {searchLoading && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    </div>
+                  )}
                   <input
                     type="text"
                     placeholder="Search students..."
@@ -236,6 +313,7 @@ export default function StudentsPage() {
                       setPage(1)
                     }}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    style={{ paddingRight: searchLoading ? '3rem' : '1rem' }}
                   />
                 </div>
                 <div className="relative">
@@ -321,7 +399,9 @@ export default function StudentsPage() {
             {/* Students Table */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               {loading ? (
-                <div className="p-8 text-center text-gray-500">Loading students...</div>
+                <div className="p-8">
+                  <LoadingSpinner message="Loading students..." showProgress={true} size="md" fullScreen={false} />
+                </div>
               ) : students.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">No students found</div>
               ) : (

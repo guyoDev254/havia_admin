@@ -10,6 +10,7 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { Permission } from '@/hooks/usePermissions'
 import { ArrowLeft, Trash2, Calendar, Users, MapPin, Video, X } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface Meetup {
   id: string
@@ -36,6 +37,7 @@ export default function StudyGroupMeetupsPage() {
   const router = useRouter()
   const params = useParams()
   const { user } = useAuth()
+  const { showError, showSuccess, showConfirm } = useSweetAlert()
   const [meetups, setMeetups] = useState<Meetup[]>([])
   const [loading, setLoading] = useState(true)
   const [includePast, setIncludePast] = useState(false)
@@ -55,21 +57,29 @@ export default function StudyGroupMeetupsPage() {
       setMeetups(response.data || [])
     } catch (error) {
       console.error('Error fetching meetups:', error)
-      alert('Failed to load meetups')
+      showError('Failed to load meetups')
     } finally {
       setLoading(false)
     }
   }
 
   const handleCancel = async (meetupId: string) => {
-    if (!confirm('Are you sure you want to cancel this meetup?')) return
+    const confirmed = await showConfirm(
+      'Cancel Meetup',
+      'Are you sure you want to cancel this meetup?',
+      'Yes, cancel it',
+      'Keep it',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.post(`/admin/study-groups/meetups/${meetupId}/cancel`)
-      alert('Meetup cancelled successfully')
+      showSuccess('Meetup cancelled successfully')
       fetchMeetups()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to cancel meetup')
+      showError('Failed to cancel meetup', error.response?.data?.message)
     }
   }
 

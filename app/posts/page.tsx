@@ -1,9 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
@@ -58,32 +61,41 @@ interface PostStats {
 export default function PostsPage() {
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
+  const { showError, showSuccess, showConfirm } = useSweetAlert()
   const [posts, setPosts] = useState<Post[]>([])
   const [stats, setStats] = useState<PostStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [userIdFilter, setUserIdFilter] = useState('')
   const [clubIdFilter, setClubIdFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'deleted' | 'hidden'>('active')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+  const prevFiltersRef = useRef({
+    page: 1,
+    userIdFilter: '',
+    clubIdFilter: '',
+    statusFilter: 'active' as 'all' | 'active' | 'deleted' | 'hidden',
+    debouncedSearch: '',
+  })
+  const isInitialMount = useRef(true)
 
-  useEffect(() => {
-    if (user && hasPermission(Permission.MODERATE_POSTS)) {
-      fetchPosts()
-      fetchStats()
-    }
-  }, [user, page, search, userIdFilter, clubIdFilter, statusFilter])
-
-  const fetchPosts = async () => {
+  const fetchPosts = async (isSearchUpdate: boolean = false) => {
     try {
-      setLoading(true)
+      if (isSearchUpdate) {
+        setSearchLoading(true)
+      } else {
+        setLoading(true)
+      }
+      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
       })
-      if (search) params.append('search', search)
+      if (debouncedSearch) params.append('search', debouncedSearch)
       if (userIdFilter) params.append('userId', userIdFilter)
       if (clubIdFilter) params.append('clubId', clubIdFilter)
       
@@ -107,11 +119,55 @@ export default function PostsPage() {
       if (error.response) {
         console.error('Error response:', error.response.data)
       }
-      alert(`Error loading posts: ${error.response?.data?.message || error.message}`)
+      showError('Error Loading Posts', error.response?.data?.message || error.message)
     } finally {
-      setLoading(false)
+      if (isSearchUpdate) {
+        setSearchLoading(false)
+      } else {
+        setLoading(false)
+      }
     }
   }
+
+  useEffect(() => {
+    if (!user || !hasPermission(Permission.MODERATE_POSTS)) return
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      prevFiltersRef.current = {
+        page,
+        userIdFilter,
+        clubIdFilter,
+        statusFilter,
+        debouncedSearch,
+      }
+      fetchPosts(false)
+      fetchStats()
+      return
+    }
+    
+    const prev = prevFiltersRef.current
+    const onlySearchChanged = 
+      prev.debouncedSearch !== debouncedSearch &&
+      prev.page === page &&
+      prev.userIdFilter === userIdFilter &&
+      prev.clubIdFilter === clubIdFilter &&
+      prev.statusFilter === statusFilter
+    
+    prevFiltersRef.current = {
+      page,
+      userIdFilter,
+      clubIdFilter,
+      statusFilter,
+      debouncedSearch,
+    }
+    
+    fetchPosts(onlySearchChanged)
+    // Only fetch stats when filters change, not on search
+    if (!onlySearchChanged) {
+      fetchStats()
+    }
+  }, [user, page, debouncedSearch, userIdFilter, clubIdFilter, statusFilter])
 
   const fetchStats = async () => {
     try {
@@ -123,76 +179,93 @@ export default function PostsPage() {
   }
 
   const handleDelete = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post? This will hide it from users.')) {
-      return
-    }
+    const confirmed = await showConfirm(
+      'Delete Post',
+      'Are you sure you want to delete this post? This will hide it from users.',
+      'Yes, delete',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/posts/${postId}`)
+      showSuccess('Post Deleted', 'The post has been deleted successfully')
       fetchPosts()
       fetchStats()
       setSelectedPost(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting post:', error)
-      alert('Failed to delete post')
+      showError('Failed to Delete Post', error.response?.data?.message || 'An error occurred while deleting the post')
     }
   }
 
   const handleHide = async (postId: string) => {
     try {
       await api.put(`/admin/posts/${postId}/hide`)
+      showSuccess('Post Hidden', 'The post has been hidden successfully')
       fetchPosts()
       fetchStats()
       if (selectedPost?.id === postId) {
         setSelectedPost({ ...selectedPost, isHidden: true })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error hiding post:', error)
-      alert('Failed to hide post')
+      showError('Failed to Hide Post', error.response?.data?.message || 'An error occurred while hiding the post')
     }
   }
 
   const handleUnhide = async (postId: string) => {
     try {
       await api.put(`/admin/posts/${postId}/unhide`)
+      showSuccess('Post Unhidden', 'The post has been unhidden successfully')
       fetchPosts()
       fetchStats()
       if (selectedPost?.id === postId) {
         setSelectedPost({ ...selectedPost, isHidden: false })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error unhiding post:', error)
-      alert('Failed to unhide post')
+      showError('Failed to Unhide Post', error.response?.data?.message || 'An error occurred while unhiding the post')
     }
   }
 
   const handleRestore = async (postId: string) => {
     try {
       await api.put(`/admin/posts/${postId}/restore`)
+      showSuccess('Post Restored', 'The post has been restored successfully')
       fetchPosts()
       fetchStats()
       if (selectedPost?.id === postId) {
         setSelectedPost({ ...selectedPost, isDeleted: false })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error restoring post:', error)
-      alert('Failed to restore post')
+      showError('Failed to Restore Post', error.response?.data?.message || 'An error occurred while restoring the post')
     }
   }
 
   const handlePermanentDelete = async (postId: string) => {
-    if (!confirm('Are you sure you want to PERMANENTLY delete this post? This action cannot be undone!')) {
-      return
-    }
+    const confirmed = await showConfirm(
+      'Permanent Delete',
+      'Are you sure you want to PERMANENTLY delete this post? This action cannot be undone!',
+      'Yes, delete permanently',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/posts/${postId}/permanent`)
+      showSuccess('Post Deleted', 'The post has been permanently deleted')
       fetchPosts()
       fetchStats()
       setSelectedPost(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error permanently deleting post:', error)
-      alert('Failed to permanently delete post')
+      showError('Failed to Delete Post', error.response?.data?.message || 'An error occurred while deleting the post')
     }
   }
 
@@ -260,6 +333,11 @@ export default function PostsPage() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  {searchLoading && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    </div>
+                  )}
                   <input
                     type="text"
                     placeholder="Search post content..."
@@ -269,6 +347,7 @@ export default function PostsPage() {
                       setPage(1)
                     }}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    style={{ paddingRight: searchLoading ? '3rem' : '1rem' }}
                   />
                 </div>
                 <div className="relative">
@@ -319,7 +398,9 @@ export default function PostsPage() {
             {/* Posts Table */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               {loading ? (
-                <div className="p-8 text-center text-gray-500">Loading posts...</div>
+                <div className="p-8">
+                  <LoadingSpinner message="Loading posts..." showProgress={true} size="md" fullScreen={false} />
+                </div>
               ) : posts.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">No posts found</div>
               ) : (

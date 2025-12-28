@@ -1,14 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import RoleBadge from '@/components/RoleBadge'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import { Search, Trash2, UserX, UserCheck, Shield } from 'lucide-react'
 
 interface User {
@@ -47,24 +50,42 @@ export default function UsersPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { hasPermission, isSuperAdmin } = usePermissions()
+  const { showError, showSuccess, showConfirm } = useSweetAlert()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedRole, setSelectedRole] = useState<string>('')
   const [selectedStatus, setSelectedStatus] = useState<string>('')
   const [sortBy, setSortBy] = useState<string>('createdAt')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const prevFiltersRef = useRef({
+    page: 1,
+    selectedRole: '',
+    selectedStatus: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc' as 'asc' | 'desc',
+    debouncedSearch: '',
+  })
+  const isInitialMount = useRef(true)
 
-
-  const fetchUsers = async () => {
+  const fetchUsers = async (isSearchUpdate: boolean = false) => {
     try {
-      setLoading(true)
+      // Only show full loading screen on initial load or non-search changes
+      // For search updates, show a subtle loading indicator instead
+      if (isSearchUpdate) {
+        setSearchLoading(true)
+      } else {
+        setLoading(true)
+      }
+      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
-        ...(search && { search }),
+        ...(debouncedSearch && { search: debouncedSearch }),
         ...(selectedRole && { role: selectedRole }),
         ...(selectedStatus && { status: selectedStatus }),
         ...(sortBy && { sortBy }),
@@ -76,57 +97,114 @@ export default function UsersPage() {
     } catch (error) {
       console.error('Error fetching users:', error)
     } finally {
-      setLoading(false)
+      if (isSearchUpdate) {
+        setSearchLoading(false)
+      } else {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
-    if (user) {
-      fetchUsers()
+    if (!user) return
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      prevFiltersRef.current = {
+        page,
+        selectedRole,
+        selectedStatus,
+        sortBy,
+        sortOrder,
+        debouncedSearch,
+      }
+      fetchUsers(false)
+      return
     }
-  }, [user, page, search, selectedRole, selectedStatus, sortBy, sortOrder])
+    
+    // Check if only search changed (and other filters stayed the same)
+    const prev = prevFiltersRef.current
+    const onlySearchChanged = 
+      prev.debouncedSearch !== debouncedSearch &&
+      prev.page === page &&
+      prev.selectedRole === selectedRole &&
+      prev.selectedStatus === selectedStatus &&
+      prev.sortBy === sortBy &&
+      prev.sortOrder === sortOrder
+    
+    // Update refs
+    prevFiltersRef.current = {
+      page,
+      selectedRole,
+      selectedStatus,
+      sortBy,
+      sortOrder,
+      debouncedSearch,
+    }
+    
+    fetchUsers(onlySearchChanged)
+  }, [user, page, debouncedSearch, selectedRole, selectedStatus, sortBy, sortOrder])
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       await api.put(`/admin/users/${userId}/role`, { role: newRole })
       fetchUsers()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating role:', error)
-      alert('Failed to update user role')
+      showError('Failed to Update Role', error.response?.data?.message || 'An error occurred while updating the user role')
     }
   }
 
   const handleSuspend = async (userId: string) => {
-    if (!confirm('Are you sure you want to suspend this user?')) return
+    const confirmed = await showConfirm(
+      'Suspend User',
+      'Are you sure you want to suspend this user?',
+      'Yes, suspend',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.post(`/admin/users/${userId}/suspend`, { reason: 'Suspended by admin' })
+      showSuccess('User Suspended', 'The user has been suspended successfully')
       fetchUsers()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error suspending user:', error)
-      alert('Failed to suspend user')
+      showError('Failed to Suspend User', error.response?.data?.message || 'An error occurred while suspending the user')
     }
   }
 
   const handleActivate = async (userId: string) => {
     try {
       await api.post(`/admin/users/${userId}/activate`)
+      showSuccess('User Activated', 'The user has been activated successfully')
       fetchUsers()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error activating user:', error)
-      alert('Failed to activate user')
+      showError('Failed to Activate User', error.response?.data?.message || 'An error occurred while activating the user')
     }
   }
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
+    const confirmed = await showConfirm(
+      'Delete User',
+      'Are you sure you want to delete this user? This action cannot be undone.',
+      'Yes, delete',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/users/${userId}`)
+      showSuccess('User Deleted', 'The user has been deleted successfully')
       fetchUsers()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error)
-      alert('Failed to delete user')
+      showError('Failed to Delete User', error.response?.data?.message || 'An error occurred while deleting the user')
     }
   }
 
@@ -134,9 +212,7 @@ export default function UsersPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading...</div>
-          </div>
+          <LoadingSpinner message="Loading users..." showProgress={true} fullScreen={false} />
         </Layout>
       </ProtectedRoute>
     )
@@ -171,6 +247,11 @@ export default function UsersPage() {
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800 space-y-4">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {searchLoading && (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                </div>
+              )}
               <input
                 type="text"
                 placeholder="Search users by name, email, or role..."
@@ -180,6 +261,7 @@ export default function UsersPage() {
                   setPage(1)
                 }}
                 className="pl-12 pr-4 py-3 w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                style={{ paddingRight: searchLoading ? '3rem' : '1rem' }}
               />
             </div>
             <div className="flex gap-4 flex-wrap">

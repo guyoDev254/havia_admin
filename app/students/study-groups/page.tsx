@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useDebounce } from '@/hooks/useDebounce'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import { Users2, Search, Eye, Trash2, Filter, Users, Edit } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface StudyGroup {
   id: string
@@ -39,27 +42,35 @@ export default function StudyGroupsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
+  const { showError, showConfirm } = useSweetAlert()
   const [groups, setGroups] = useState<StudyGroup[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [levelFilter, setLevelFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const prevFiltersRef = useRef({
+    page: 1,
+    levelFilter: 'all',
+    debouncedSearch: '',
+  })
+  const isInitialMount = useRef(true)
 
-  useEffect(() => {
-    if (user) {
-      fetchGroups()
-    }
-  }, [user, page, search, levelFilter])
-
-  const fetchGroups = async () => {
+  const fetchGroups = async (isSearchUpdate: boolean = false) => {
     try {
-      setLoading(true)
+      if (isSearchUpdate) {
+        setSearchLoading(true)
+      } else {
+        setLoading(true)
+      }
+      
       const params: any = {
         page,
         limit: 20,
       }
-      if (search) params.search = search
+      if (debouncedSearch) params.search = debouncedSearch
       if (levelFilter !== 'all') params.level = levelFilter
 
       const response = await api.get('/admin/study-groups', { params })
@@ -68,19 +79,60 @@ export default function StudyGroupsPage() {
     } catch (error) {
       console.error('Error fetching study groups:', error)
     } finally {
-      setLoading(false)
+      if (isSearchUpdate) {
+        setSearchLoading(false)
+      } else {
+        setLoading(false)
+      }
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      prevFiltersRef.current = {
+        page,
+        levelFilter,
+        debouncedSearch,
+      }
+      fetchGroups(false)
+      return
+    }
+    
+    const prev = prevFiltersRef.current
+    const onlySearchChanged = 
+      prev.debouncedSearch !== debouncedSearch &&
+      prev.page === page &&
+      prev.levelFilter === levelFilter
+    
+    prevFiltersRef.current = {
+      page,
+      levelFilter,
+      debouncedSearch,
+    }
+    
+    fetchGroups(onlySearchChanged)
+  }, [user, page, debouncedSearch, levelFilter])
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this study group?')) return
+    const confirmed = await showConfirm(
+      'Delete Study Group',
+      'Are you sure you want to delete this study group?',
+      'Yes, delete it',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/study-groups/${id}`)
       fetchGroups()
     } catch (error) {
       console.error('Error deleting study group:', error)
-      alert('Failed to delete study group')
+      showError('Failed to delete study group')
     }
   }
 
@@ -147,6 +199,11 @@ export default function StudyGroupsPage() {
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  {searchLoading && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    </div>
+                  )}
                   <input
                     type="text"
                     placeholder="Search study groups..."
@@ -156,6 +213,7 @@ export default function StudyGroupsPage() {
                       setPage(1)
                     }}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    style={{ paddingRight: searchLoading ? '3rem' : '1rem' }}
                   />
                 </div>
                 <div className="relative">
@@ -181,7 +239,9 @@ export default function StudyGroupsPage() {
             {/* Study Groups Table */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               {loading ? (
-                <div className="p-8 text-center text-gray-500">Loading study groups...</div>
+                <div className="p-8">
+                  <LoadingSpinner message="Loading study groups..." showProgress={true} size="md" fullScreen={false} />
+                </div>
               ) : groups.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">No study groups found</div>
               ) : (

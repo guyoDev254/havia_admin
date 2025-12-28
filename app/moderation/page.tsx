@@ -3,18 +3,22 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
-import { Shield, AlertTriangle, UserX, CheckCircle, XCircle, MessageSquare, FileText } from 'lucide-react'
+import { Shield, AlertTriangle, UserX, CheckCircle, XCircle, MessageSquare, FileText, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Report {
   id: string
   type: string
   reason: string
+  description?: string
   status: string
+  entityType?: string
+  entityId?: string
   resolvedAt?: string | null
   reportedUser?: {
     id: string
@@ -28,6 +32,7 @@ interface Report {
     id: string
     firstName: string
     lastName: string
+    email?: string
   }
   createdAt: string
 }
@@ -85,10 +90,12 @@ function StatsCards({ reports, stats }: { reports: Report[]; stats?: any }) {
 export default function ModerationPage() {
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
+  const { showSuccess, showError, showConfirm } = useSweetAlert()
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('pending')
   const [stats, setStats] = useState<any>(null)
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
 
   useEffect(() => {
     if (user && hasPermission(Permission.VIEW_REPORTS)) {
@@ -132,16 +139,42 @@ export default function ModerationPage() {
 
   const handleResolve = async (reportId: string, action: 'approve' | 'reject', issueStrike: boolean = false) => {
     try {
+      const report = reports.find(r => r.id === reportId)
+      const reportUserName = report?.reportedUser 
+        ? `${report.reportedUser.firstName} ${report.reportedUser.lastName}`
+        : 'this user'
+
+      // Confirm before approving with strike
+      if (action === 'approve' && report?.reportedUser && issueStrike) {
+        const confirmed = await showConfirm(
+          'Issue Strike?',
+          `Approve report and issue strike to ${reportUserName}? This will increase their strike count.`,
+          'Yes, approve and issue strike',
+          'Cancel',
+          '#dc2626',
+          true
+        )
+        if (!confirmed) return
+      }
+
       const status = action === 'approve' ? 'RESOLVED' : 'DISMISSED'
       await api.put(`/reports/${reportId}/resolve`, {
         status,
         resolution: action === 'approve' ? 'Report approved and action taken' : 'Report dismissed',
         issueStrike: action === 'approve' ? issueStrike : false,
       })
+      
+      await showSuccess(
+        'Report Resolved',
+        action === 'approve' 
+          ? 'Report has been approved and action has been taken.'
+          : 'Report has been dismissed.'
+      )
       fetchReports()
-    } catch (error) {
+      setSelectedReport(null)
+    } catch (error: any) {
       console.error('Error resolving report:', error)
-      alert('Failed to resolve report')
+      showError('Resolution Failed', error.response?.data?.message || 'Failed to resolve report')
     }
   }
 
@@ -214,8 +247,164 @@ export default function ModerationPage() {
             </div>
           </div>
 
+          {/* Report Detail Modal */}
+          {selectedReport && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Report Details</h2>
+                    <button
+                      onClick={() => setSelectedReport(null)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <XCircle className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Report Type</label>
+                    <p className="mt-1 text-gray-900 dark:text-white font-semibold">{selectedReport.type}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Entity Type</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{selectedReport.entityType}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Reason</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{selectedReport.reason}</p>
+                  </div>
+                  {selectedReport.description && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Description</label>
+                      <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">{selectedReport.description}</p>
+                    </div>
+                  )}
+                  {selectedReport.reportedUser && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Reported User</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">
+                        {selectedReport.reportedUser.firstName} {selectedReport.reportedUser.lastName}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{selectedReport.reportedUser.email}</p>
+                      <p className="mt-2 text-sm">
+                        <span className="font-medium text-gray-900 dark:text-white">Strikes:</span>{' '}
+                        <span className="text-gray-700 dark:text-gray-300">{selectedReport.reportedUser.strikeCount || 0}/3</span>
+                        {selectedReport.reportedUser.isPostingRestricted && (
+                          <span className="ml-2 text-red-600 font-semibold">🚫 Posting Restricted</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  {selectedReport.reporter && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Reported By</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">
+                        {selectedReport.reporter.firstName} {selectedReport.reporter.lastName}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                    <p className="mt-1">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        selectedReport.status === 'PENDING' ? 'bg-orange-100 text-orange-800' :
+                        selectedReport.status === 'RESOLVED' ? 'bg-green-100 text-green-800' :
+                        selectedReport.status === 'DISMISSED' ? 'bg-gray-100 text-gray-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {selectedReport.status}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">
+                      {format(new Date(selectedReport.createdAt), 'PPpp')}
+                    </p>
+                  </div>
+                  {selectedReport.resolvedAt && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Resolved At</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">
+                        {format(new Date(selectedReport.resolvedAt), 'PPpp')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-2 justify-end">
+                  <button
+                    onClick={() => setSelectedReport(null)}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  >
+                    Close
+                  </button>
+                  {(selectedReport.status === 'PENDING' || selectedReport.status === 'UNDER_REVIEW') && (
+                    <>
+                      <button
+                        onClick={async () => {
+                          if (selectedReport.reportedUser) {
+                            const confirmed = await showConfirm(
+                              'Approve Report?',
+                              `Approve this report for ${selectedReport.reportedUser.firstName} ${selectedReport.reportedUser.lastName}?`,
+                              'Yes, approve',
+                              'Cancel'
+                            )
+                            if (confirmed) {
+                              const issueStrike = await showConfirm(
+                                'Issue Strike?',
+                                `Do you want to issue a strike to ${selectedReport.reportedUser.firstName}?`,
+                                'Yes, issue strike',
+                                'No, just approve',
+                                '#f59e0b',
+                                false
+                              )
+                              handleResolve(selectedReport.id, 'approve', issueStrike)
+                            }
+                          } else {
+                            const confirmed = await showConfirm(
+                              'Approve Report?',
+                              'Approve this report and take action?',
+                              'Yes, approve',
+                              'Cancel'
+                            )
+                            if (confirmed) {
+                              handleResolve(selectedReport.id, 'approve', false)
+                            }
+                          }
+                        }}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Approve
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const confirmed = await showConfirm(
+                            'Dismiss Report?',
+                            'Are you sure you want to dismiss this report?',
+                            'Yes, dismiss',
+                            'Cancel'
+                          )
+                          if (confirmed) {
+                            handleResolve(selectedReport.id, 'reject', false)
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Dismiss
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Reports List */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-100">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
             {loading ? (
               <div className="p-8 text-center text-gray-500">Loading reports...</div>
             ) : reports.length === 0 ? (
@@ -240,11 +429,19 @@ export default function ModerationPage() {
                             {format(new Date(report.createdAt), 'MMM dd, yyyy • h:mm a')}
                           </span>
                         </div>
-                        <p className="text-gray-900 font-medium mb-1">{report.reason}</p>
+                        <p className="text-gray-900 dark:text-white font-medium mb-1">{report.reason}</p>
+                        {report.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{report.description}</p>
+                        )}
                         {report.reportedUser && (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                             Reported User: {report.reportedUser.firstName}{' '}
                             {report.reportedUser.lastName} ({report.reportedUser.email})
+                          </p>
+                        )}
+                        {report.reporter && (
+                          <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                            Reported by: {report.reporter.firstName} {report.reporter.lastName}
                           </p>
                         )}
                       </div>
@@ -258,17 +455,45 @@ export default function ModerationPage() {
                               )}
                             </div>
                           )}
+                          <button
+                            onClick={() => setSelectedReport(report)}
+                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="h-5 w-5" />
+                          </button>
                           {report.status === 'PENDING' || report.status === 'UNDER_REVIEW' ? (
                             <>
                               <button
-                                onClick={() => {
+                                onClick={async () => {
                                   if (report.reportedUser) {
-                                    const issueStrike = confirm(
-                                      `Approve report and issue strike to ${report.reportedUser.firstName} ${report.reportedUser.lastName}?`
+                                    const confirmed = await showConfirm(
+                                      'Approve Report?',
+                                      `Approve this report for ${report.reportedUser.firstName} ${report.reportedUser.lastName}?`,
+                                      'Yes, approve',
+                                      'Cancel'
                                     )
-                                    handleResolve(report.id, 'approve', issueStrike)
+                                    if (confirmed) {
+                                      const issueStrike = await showConfirm(
+                                        'Issue Strike?',
+                                        `Do you want to issue a strike to ${report.reportedUser.firstName}?`,
+                                        'Yes, issue strike',
+                                        'No, just approve',
+                                        '#f59e0b',
+                                        false
+                                      )
+                                      handleResolve(report.id, 'approve', issueStrike)
+                                    }
                                   } else {
-                                    handleResolve(report.id, 'approve', false)
+                                    const confirmed = await showConfirm(
+                                      'Approve Report?',
+                                      'Approve this report and take action?',
+                                      'Yes, approve',
+                                      'Cancel'
+                                    )
+                                    if (confirmed) {
+                                      handleResolve(report.id, 'approve', false)
+                                    }
                                   }
                                 }}
                                 className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
@@ -277,9 +502,19 @@ export default function ModerationPage() {
                                 <CheckCircle className="h-5 w-5" />
                               </button>
                               <button
-                                onClick={() => handleResolve(report.id, 'reject')}
+                                onClick={async () => {
+                                  const confirmed = await showConfirm(
+                                    'Dismiss Report?',
+                                    'Are you sure you want to dismiss this report?',
+                                    'Yes, dismiss',
+                                    'Cancel'
+                                  )
+                                  if (confirmed) {
+                                    handleResolve(report.id, 'reject', false)
+                                  }
+                                }}
                                 className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Reject Report"
+                                title="Dismiss Report"
                               >
                                 <XCircle className="h-5 w-5" />
                               </button>

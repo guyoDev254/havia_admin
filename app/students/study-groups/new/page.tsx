@@ -10,6 +10,7 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { Permission } from '@/hooks/usePermissions'
 import { Users2, ArrowLeft, Save, Search, User } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface UserOption {
   id: string
@@ -21,6 +22,7 @@ interface UserOption {
 export default function NewStudyGroupPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { showError, showSuccess, showWarning } = useSweetAlert()
   const [saving, setSaving] = useState(false)
   const [userSearch, setUserSearch] = useState('')
   const [userOptions, setUserOptions] = useState<UserOption[]>([])
@@ -78,19 +80,19 @@ export default function NewStudyGroupPage() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('Group name is required')
+      showWarning('Validation Error', 'Group name is required')
       return
     }
     if (!formData.description.trim()) {
-      alert('Description is required')
+      showWarning('Validation Error', 'Description is required')
       return
     }
     if (!formData.subject.trim()) {
-      alert('Subject is required')
+      showWarning('Validation Error', 'Subject is required')
       return
     }
     if (!formData.createdBy.trim()) {
-      alert('Please select a user to be the group creator/leader')
+      showWarning('Validation Error', 'Please select a user to be the group creator/leader')
       return
     }
 
@@ -103,10 +105,10 @@ export default function NewStudyGroupPage() {
         createdBy: formData.createdBy,
       }
       const response = await api.post('/admin/study-groups', payload)
-      alert('Study group created successfully')
+      showSuccess('Study group created successfully')
       router.push(`/students/study-groups/${response.data.id}`)
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to create study group')
+      showError('Failed to create study group', error.response?.data?.message)
     } finally {
       setSaving(false)
     }

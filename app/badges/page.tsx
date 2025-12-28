@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { Plus, Trash2 } from 'lucide-react'
@@ -21,6 +23,7 @@ interface Badge {
 
 export default function BadgesPage() {
   const { user } = useAuth()
+  const { showError, showSuccess, showConfirm } = useSweetAlert()
   const [badges, setBadges] = useState<Badge[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -53,24 +56,34 @@ export default function BadgesPage() {
     e.preventDefault()
     try {
       await api.post('/admin/badges', formData)
+      showSuccess('Badge Created', 'The badge has been created successfully')
       setShowCreateModal(false)
       setFormData({ name: '', description: '', type: 'ACHIEVEMENT', points: 0 })
       fetchBadges()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating badge:', error)
-      alert('Failed to create badge')
+      showError('Failed to Create Badge', error.response?.data?.message || 'An error occurred while creating the badge')
     }
   }
 
   const handleDelete = async (badgeId: string) => {
-    if (!confirm('Are you sure you want to delete this badge?')) return
+    const confirmed = await showConfirm(
+      'Delete Badge',
+      'Are you sure you want to delete this badge?',
+      'Yes, delete',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/badges/${badgeId}`)
+      showSuccess('Badge Deleted', 'The badge has been deleted successfully')
       fetchBadges()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting badge:', error)
-      alert('Failed to delete badge')
+      showError('Failed to Delete Badge', error.response?.data?.message || 'An error occurred while deleting the badge')
     }
   }
 
@@ -78,9 +91,7 @@ export default function BadgesPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading...</div>
-          </div>
+          <LoadingSpinner message="Loading badges..." showProgress={true} fullScreen={false} />
         </Layout>
       </ProtectedRoute>
     )

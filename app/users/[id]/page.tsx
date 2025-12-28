@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import RoleBadge from '@/components/RoleBadge'
@@ -109,7 +111,11 @@ function UserAuditLogs({ userId }: { userId: string }) {
   }, [userId, page])
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Loading audit logs...</div>
+    return (
+      <div className="text-center py-8">
+        <LoadingSpinner message="Loading audit logs..." showProgress={true} size="sm" fullScreen={false} />
+      </div>
+    )
   }
 
   if (logs.length === 0) {
@@ -182,6 +188,7 @@ export default function UserDetailPage() {
   const router = useRouter()
   const { user: currentUser } = useAuth()
   const { hasPermission, isSuperAdmin } = usePermissions()
+  const { showError, showSuccess, showWarning, showConfirm } = useSweetAlert()
   const [user, setUser] = useState<UserDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'mentorship' | 'moderation' | 'audit'>('overview')
@@ -240,9 +247,9 @@ export default function UserDetailPage() {
           reportsAgainst: 0,
         }
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching user details:', error)
-      alert('Failed to load user details')
+      showError('Failed to Load User Details', error.response?.data?.message || 'An error occurred while loading user details')
     } finally {
       setLoading(false)
     }
@@ -254,15 +261,15 @@ export default function UserDetailPage() {
       await api.put(`/admin/users/${params.id}/role`, { role: newRole })
       setShowRoleModal(false)
       fetchUserDetails()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating role:', error)
-      alert('Failed to update user role')
+      showError('Failed to Update Role', error.response?.data?.message || 'An error occurred while updating the user role')
     }
   }
 
   const handleSuspend = async () => {
     if (!suspendReason) {
-      alert('Please provide a reason for suspension')
+      showWarning('Validation Error', 'Please provide a reason for suspension')
       return
     }
     try {
@@ -273,30 +280,41 @@ export default function UserDetailPage() {
       setShowSuspendModal(false)
       setSuspendReason('')
       fetchUserDetails()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error suspending user:', error)
-      alert('Failed to suspend user')
+      showError('Failed to Suspend User', error.response?.data?.message || 'An error occurred while suspending the user')
     }
   }
 
   const handleActivate = async () => {
     try {
       await api.post(`/admin/users/${params.id}/activate`)
+      showSuccess('User Activated', 'The user has been activated successfully')
       fetchUserDetails()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error activating user:', error)
-      alert('Failed to activate user')
+      showError('Failed to Activate User', error.response?.data?.message || 'An error occurred while activating the user')
     }
   }
 
   const handleBan = async () => {
-    if (!confirm('Are you sure you want to permanently ban this user? This action cannot be undone.')) return
+    const confirmed = await showConfirm(
+      'Ban User',
+      'Are you sure you want to permanently ban this user? This action cannot be undone.',
+      'Yes, ban permanently',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
+    
     try {
       await api.post(`/admin/users/${params.id}/ban`, { reason: 'Permanently banned by admin' })
+      showSuccess('User Banned', 'The user has been permanently banned')
       fetchUserDetails()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error banning user:', error)
-      alert('Failed to ban user')
+      showError('Failed to Ban User', error.response?.data?.message || 'An error occurred while banning the user')
     }
   }
 
@@ -306,10 +324,10 @@ export default function UserDetailPage() {
       await api.post(`/admin/users/${params.id}/message`, { message: messageText })
       setShowMessageModal(false)
       setMessageText('')
-      alert('Message sent successfully')
-    } catch (error) {
+      showSuccess('Message Sent', 'Your message has been sent successfully')
+    } catch (error: any) {
       console.error('Error sending message:', error)
-      alert('Failed to send message')
+      showError('Failed to Send Message', error.response?.data?.message || 'An error occurred while sending the message')
     }
   }
 
@@ -323,9 +341,10 @@ export default function UserDetailPage() {
       document.body.appendChild(link)
       link.click()
       link.remove()
-    } catch (error) {
+      showSuccess('Data Exported', 'User data has been exported successfully')
+    } catch (error: any) {
       console.error('Error exporting data:', error)
-      alert('Failed to export user data')
+      showError('Failed to Export Data', error.response?.data?.message || 'An error occurred while exporting user data')
     }
   }
 

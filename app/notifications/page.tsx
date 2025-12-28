@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -26,6 +27,7 @@ interface Notification {
 
 export default function NotificationsPage() {
   const { user } = useAuth()
+  const { showError, showSuccess } = useSweetAlert()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -100,9 +102,9 @@ export default function NotificationsPage() {
         link: '',
       })
       fetchNotifications()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating notification:', error)
-      alert('Failed to create notification')
+      showError('Failed to Create Notification', error.response?.data?.message || 'An error occurred while creating the notification')
     }
   }
 
@@ -117,11 +119,11 @@ export default function NotificationsPage() {
         type: 'SYSTEM_ANNOUNCEMENT',
         link: '',
       })
-      alert('System notification sent to all users!')
+      showSuccess('Notification Sent', 'System notification sent to all users!')
       fetchNotifications()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending system notification:', error)
-      alert('Failed to send system notification')
+      showError('Failed to Send Notification', error.response?.data?.message || 'An error occurred while sending the system notification')
     }
   }
 

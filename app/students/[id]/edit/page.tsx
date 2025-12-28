@@ -10,6 +10,7 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { Permission } from '@/hooks/usePermissions'
 import { GraduationCap, ArrowLeft, Save, Mail, Phone, MapPin, School, Calendar } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface Student {
   id: string
@@ -41,6 +42,7 @@ export default function EditStudentPage() {
   const router = useRouter()
   const params = useParams()
   const { user } = useAuth()
+  const { showSuccess, showError } = useSweetAlert()
   const [student, setStudent] = useState<Student | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -101,7 +103,7 @@ export default function EditStudentPage() {
       })
     } catch (error) {
       console.error('Error fetching student:', error)
-      alert('Failed to load student data')
+      showError('Failed to load student data')
     } finally {
       setLoading(false)
     }
@@ -129,10 +131,10 @@ export default function EditStudentPage() {
         extracurriculars: formData.extracurriculars,
         careerGoals: formData.careerGoals || undefined,
       })
-      alert('Student updated successfully')
+      showSuccess('Student updated successfully')
       router.push(`/students/${params.id}`)
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to update student')
+      showError('Failed to update student', error.response?.data?.message)
     } finally {
       setSaving(false)
     }

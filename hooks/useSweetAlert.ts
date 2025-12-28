@@ -3,9 +3,10 @@ import Swal from 'sweetalert2'
 export const useSweetAlert = () => {
   const showSuccess = (title: string, text?: string) => {
     return Swal.fire({
-      icon: 'success',
       title,
       text: text || '',
+      icon: 'success',
+      confirmButtonText: 'OK',
       confirmButtonColor: '#2563eb',
       timer: 3000,
       timerProgressBar: true,
@@ -14,27 +15,30 @@ export const useSweetAlert = () => {
 
   const showError = (title: string, text?: string) => {
     return Swal.fire({
-      icon: 'error',
       title,
       text: text || '',
+      icon: 'error',
+      confirmButtonText: 'OK',
       confirmButtonColor: '#dc2626',
     })
   }
 
   const showWarning = (title: string, text?: string) => {
     return Swal.fire({
-      icon: 'warning',
       title,
       text: text || '',
+      icon: 'warning',
+      confirmButtonText: 'OK',
       confirmButtonColor: '#f59e0b',
     })
   }
 
   const showInfo = (title: string, text?: string) => {
     return Swal.fire({
-      icon: 'info',
       title,
       text: text || '',
+      icon: 'info',
+      confirmButtonText: 'OK',
       confirmButtonColor: '#2563eb',
     })
   }
@@ -52,10 +56,10 @@ export const useSweetAlert = () => {
       text,
       icon: danger ? 'warning' : 'question',
       showCancelButton: true,
-      confirmButtonColor: danger ? '#dc2626' : confirmButtonColor,
-      cancelButtonColor: '#6b7280',
       confirmButtonText,
       cancelButtonText,
+      confirmButtonColor: danger ? '#dc2626' : confirmButtonColor,
+      cancelButtonColor: '#6b7280',
       reverseButtons: true,
     })
     return result.isConfirmed
@@ -76,6 +80,11 @@ export const useSweetAlert = () => {
     Swal.close()
   }
 
+  // Direct access to Swal for custom usage
+  const fire = (options: any) => {
+    return Swal.fire(options)
+  }
+
   return {
     showSuccess,
     showError,
@@ -84,6 +93,8 @@ export const useSweetAlert = () => {
     showConfirm,
     showLoading,
     close,
+    fire, // Direct access for custom alerts
+    Swal, // Export Swal for advanced usage
   }
 }
 

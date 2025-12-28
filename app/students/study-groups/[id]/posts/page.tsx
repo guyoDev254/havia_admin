@@ -10,6 +10,7 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { Permission } from '@/hooks/usePermissions'
 import { ArrowLeft, Trash2, Pin, PinOff, FileText } from 'lucide-react'
 import Link from 'next/link'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 interface Post {
   id: string
@@ -30,6 +31,7 @@ export default function StudyGroupPostsPage() {
   const router = useRouter()
   const params = useParams()
   const { user } = useAuth()
+  const { showError, showSuccess, showConfirm } = useSweetAlert()
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -51,21 +53,29 @@ export default function StudyGroupPostsPage() {
       setTotalPages(response.data.pagination?.totalPages || 1)
     } catch (error) {
       console.error('Error fetching posts:', error)
-      alert('Failed to load posts')
+      showError('Failed to load posts')
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return
+    const confirmed = await showConfirm(
+      'Delete Post',
+      'Are you sure you want to delete this post?',
+      'Yes, delete it',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/students/study-groups/posts/${postId}`)
-      alert('Post deleted successfully')
+      showSuccess('Post deleted successfully')
       fetchPosts()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to delete post')
+      showError('Failed to delete post', error.response?.data?.message)
     }
   }
 
@@ -76,7 +86,7 @@ export default function StudyGroupPostsPage() {
       })
       fetchPosts()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to update post')
+      showError('Failed to update post', error.response?.data?.message)
     }
   }
 

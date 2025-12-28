@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import { Trash2, Plus, Search } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -28,22 +31,30 @@ interface Event {
 
 export default function EventsPage() {
   const { user } = useAuth()
+  const { showError, showConfirm } = useSweetAlert()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [statusFilter, setStatusFilter] = useState('')
+  const prevFiltersRef = useRef({
+    page: 1,
+    statusFilter: '',
+    debouncedSearch: '',
+  })
+  const isInitialMount = useRef(true)
 
-  useEffect(() => {
-    if (user) {
-      fetchEvents()
-    }
-  }, [user, page, search, statusFilter])
-
-  const fetchEvents = async () => {
+  const fetchEvents = async (isSearchUpdate: boolean = false) => {
     try {
-      setLoading(true)
+      if (isSearchUpdate) {
+        setSearchLoading(true)
+      } else {
+        setLoading(true)
+      }
+      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
@@ -51,11 +62,11 @@ export default function EventsPage() {
       const response = await api.get(`/admin/events?${params}`)
       let filteredEvents = response.data.events
       
-      if (search) {
+      if (debouncedSearch) {
         filteredEvents = filteredEvents.filter(
           (event: Event) =>
-            event.title.toLowerCase().includes(search.toLowerCase()) ||
-            event.description?.toLowerCase().includes(search.toLowerCase())
+            event.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+            event.description?.toLowerCase().includes(debouncedSearch.toLowerCase())
         )
       }
       
@@ -68,19 +79,60 @@ export default function EventsPage() {
     } catch (error) {
       console.error('Error fetching events:', error)
     } finally {
-      setLoading(false)
+      if (isSearchUpdate) {
+        setSearchLoading(false)
+      } else {
+        setLoading(false)
+      }
     }
   }
 
+  useEffect(() => {
+    if (!user) return
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      prevFiltersRef.current = {
+        page,
+        statusFilter,
+        debouncedSearch,
+      }
+      fetchEvents(false)
+      return
+    }
+    
+    const prev = prevFiltersRef.current
+    const onlySearchChanged = 
+      prev.debouncedSearch !== debouncedSearch &&
+      prev.page === page &&
+      prev.statusFilter === statusFilter
+    
+    prevFiltersRef.current = {
+      page,
+      statusFilter,
+      debouncedSearch,
+    }
+    
+    fetchEvents(onlySearchChanged)
+  }, [user, page, debouncedSearch, statusFilter])
+
   const handleDelete = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event?')) return
+    const confirmed = await showConfirm(
+      'Delete Event',
+      'Are you sure you want to delete this event?',
+      'Yes, delete',
+      'Cancel',
+      '#dc2626',
+      true
+    )
+    if (!confirmed) return
 
     try {
       await api.delete(`/admin/events/${eventId}`)
       fetchEvents()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting event:', error)
-      alert('Failed to delete event')
+      showError('Failed to delete event', error.response?.data?.message || 'An error occurred while deleting the event')
     }
   }
 
@@ -88,9 +140,7 @@ export default function EventsPage() {
     return (
       <ProtectedRoute>
         <Layout>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading...</div>
-          </div>
+          <LoadingSpinner message="Loading events..." showProgress={true} fullScreen={false} />
         </Layout>
       </ProtectedRoute>
     )
@@ -124,6 +174,11 @@ export default function EventsPage() {
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800 space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {searchLoading && (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                </div>
+              )}
               <input
                 type="text"
                 placeholder="Search events..."
@@ -133,6 +188,7 @@ export default function EventsPage() {
                   setPage(1)
                 }}
                 className="pl-12 pr-4 py-3 w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                style={{ paddingRight: searchLoading ? '3rem' : '1rem' }}
               />
             </div>
             <select
