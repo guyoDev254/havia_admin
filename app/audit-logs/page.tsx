@@ -7,8 +7,10 @@ import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
-import { History, Search, Filter, User, Shield, Calendar, FileText, ArrowUpDown } from 'lucide-react'
+import { History, Search, Filter, User, Shield, Calendar, FileText, ArrowUpDown, Download } from 'lucide-react'
 import { format } from 'date-fns'
+import DownloadModal from '@/components/DownloadModal'
+import { ExportFormat, exportTableToCSV, exportTableToExcel, exportToPDF } from '@/lib/report-export'
 
 interface AuditLog {
   id: string
@@ -64,6 +66,7 @@ export default function AuditLogsPage() {
     endDate: '',
   })
   const [showFilters, setShowFilters] = useState(false)
+  const [showDownloadModal, setShowDownloadModal] = useState(false)
 
   const fetchAuditLogs = async () => {
     try {
@@ -106,6 +109,45 @@ export default function AuditLogsPage() {
     return String(changes)
   }
 
+  const handleDownload = (format: ExportFormat) => {
+    try {
+      const headers = ['ID', 'Action', 'Entity', 'Entity ID', 'Admin', 'User', 'Reason', 'Created At']
+      const data = logs.map((log) => ({
+        'ID': log.id,
+        'Action': log.action,
+        'Entity': log.entity,
+        'Entity ID': log.entityId || 'N/A',
+        'Admin': `${log.admin.firstName} ${log.admin.lastName} (${log.admin.email})`,
+        'User': log.user ? `${log.user.firstName} ${log.user.lastName} (${log.user.email})` : 'N/A',
+        'Reason': log.reason || 'N/A',
+        'Created At': format(new Date(log.createdAt), 'PPpp'),
+      }))
+
+      const filename = `audit-logs-${format(new Date(), 'yyyy-MM-dd')}`
+
+      switch (format) {
+        case 'pdf':
+          const summaryData = {
+            title: 'Audit Logs Summary',
+            type: 'AUDIT_LOG',
+            content: `Total Logs: ${logs.length}\n\nLog Details:\n${logs.map((log, i) => `${i + 1}. ${log.action} on ${log.entity} by ${log.admin.firstName} ${log.admin.lastName} at ${format(new Date(log.createdAt), 'PPpp')}`).join('\n')}`,
+            createdAt: new Date().toISOString(),
+          }
+          exportToPDF(summaryData, `${filename}.pdf`)
+          break
+        case 'excel':
+          exportTableToExcel(data, headers, `${filename}.xlsx`, 'Audit Logs')
+          break
+        case 'csv':
+          exportTableToCSV(data, headers, `${filename}.csv`)
+          break
+      }
+    } catch (error: any) {
+      console.error('Error exporting audit logs:', error)
+      alert('Failed to export audit logs')
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -135,13 +177,22 @@ export default function AuditLogsPage() {
                     Track all admin actions and changes in the system
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Filter className="h-5 w-5" />
-                  Filters
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowDownloadModal(true)}
+                    className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Download className="h-5 w-5" />
+                    Export
+                  </button>
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Filter className="h-5 w-5" />
+                    Filters
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -402,6 +453,12 @@ export default function AuditLogsPage() {
               )}
             </div>
           </div>
+          <DownloadModal
+            isOpen={showDownloadModal}
+            onClose={() => setShowDownloadModal(false)}
+            onDownload={handleDownload}
+            title="Export Audit Logs"
+          />
         </Layout>
       </PermissionGuard>
     </ProtectedRoute>

@@ -10,7 +10,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
-import { Trash2, Plus, Search, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Trash2, Plus, Search, CheckCircle, XCircle, Clock, Users, Calendar } from 'lucide-react'
 import Link from 'next/link'
 
 interface Club {
@@ -180,7 +180,7 @@ export default function ClubsPage() {
   return (
     <ProtectedRoute>
       <Layout>
-      <div className="space-y-6">
+        <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Clubs</h1>
@@ -210,8 +210,9 @@ export default function ClubsPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
+        {/* Filters and Search */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               {searchLoading && (
@@ -221,19 +222,19 @@ export default function ClubsPage() {
               )}
               <input
                 type="text"
-                placeholder="Search clubs..."
+                placeholder="Search clubs by name or description..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)
                   setPage(1)
                 }}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="pl-10 pr-4 py-2.5 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all"
                 style={{ paddingRight: searchLoading ? '3rem' : '1rem' }}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Status Filter
+                Filter by Status
               </label>
               <select
                 value={statusFilter}
@@ -241,7 +242,7 @@ export default function ClubsPage() {
                   setStatusFilter(e.target.value)
                   setPage(1)
                 }}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
                 <option value="">All Statuses</option>
                 <option value="PENDING">Pending</option>
@@ -252,151 +253,178 @@ export default function ClubsPage() {
               </select>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Club
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Members
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Events
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {clubs.map((club) => (
-                  <tr
-                    key={club.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                    onClick={() => window.location.href = `/clubs/${club.id}`}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        {club.logo || club.image ? (
-                          <img
-                            src={club.logo || club.image}
-                            alt={club.name}
-                            className="h-12 w-12 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                            {club.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {club.name}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                            {club.description}
-                          </div>
-                        </div>
+        </div>
+
+        {/* Clubs Grid */}
+        {clubs.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <div className="text-gray-400 dark:text-gray-500 mb-4">
+              <Users className="h-16 w-16 mx-auto" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No clubs found</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {search || statusFilter
+                ? 'Try adjusting your search or filters'
+                : 'Get started by creating your first club'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {clubs.map((club) => (
+              <div
+                key={club.id}
+                className="bg-white dark:bg-gray-800 shadow rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 group cursor-pointer"
+                onClick={() => window.location.href = `/clubs/${club.id}`}
+              >
+                {/* Club Header with Image/Banner */}
+                <div className="relative h-32 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500">
+                  {club.banner || club.image ? (
+                    <img
+                      src={club.banner || club.image}
+                      alt={club.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : null}
+                  <div className="absolute top-3 right-3">
+                    <span
+                      className={`px-3 py-1 text-xs font-semibold rounded-full backdrop-blur-sm ${
+                        club.isActive
+                          ? 'bg-green-500/90 text-white'
+                          : 'bg-red-500/90 text-white'
+                      }`}
+                    >
+                      {club.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Club Content */}
+                <div className="p-5">
+                  <div className="flex items-start gap-4 mb-4">
+                    {club.logo ? (
+                      <img
+                        src={club.logo}
+                        alt={club.name}
+                        className="h-16 w-16 rounded-xl object-cover border-2 border-white dark:border-gray-700 shadow-md -mt-8"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl border-2 border-white dark:border-gray-700 shadow-md -mt-8">
+                        {club.name.charAt(0).toUpperCase()}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {club.category}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {club._count.members}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {club._count.events}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          club.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {club.isActive ? 'Active' : 'Inactive'}
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {club.name}
+                      </h3>
+                      <span className="inline-block px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md">
+                        {club.category}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        <PermissionGuard permission={Permission.APPROVE_CLUBS}>
-                          {!club.isActive ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleApprove(club.id)
-                              }}
-                              className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Approve Club"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleReject(club.id)
-                              }}
-                              className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
-                              title="Deactivate Club"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          )}
-                        </PermissionGuard>
-                        <PermissionGuard permission={Permission.MANAGE_CLUBS}>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-4">
+                    {club.description || 'No description available'}
+                  </p>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {club._count.members}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">members</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {club._count.events}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">events</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between">
+                    <Link
+                      href={`/clubs/${club.id}`}
+                      className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View Details →
+                    </Link>
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <PermissionGuard permission={Permission.APPROVE_CLUBS}>
+                        {!club.isActive ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleDelete(club.id)
+                              handleApprove(club.id)
                             }}
-                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete Club"
+                            className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                            title="Approve Club"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <CheckCircle className="h-5 w-5" />
                           </button>
-                        </PermissionGuard>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReject(club.id)
+                            }}
+                            className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                            title="Deactivate Club"
+                          >
+                            <XCircle className="h-5 w-5" />
+                          </button>
+                        )}
+                      </PermissionGuard>
+                      <PermissionGuard permission={Permission.MANAGE_CLUBS}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(club.id)
+                          }}
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Delete Club"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </PermissionGuard>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+        )}
 
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-gray-700">
-                Page {page} of {totalPages}
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg px-6 py-4 flex items-center justify-between">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Page <span className="font-semibold">{page}</span> of <span className="font-semibold">{totalPages}</span>
               </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50"
-              >
-                Next
-              </button>
             </div>
-          )}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
+            >
+              Next
+            </button>
+          </div>
+        )}
         </div>
-      </div>
-    </Layout>
+      </Layout>
     </ProtectedRoute>
   )
 }

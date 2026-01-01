@@ -24,11 +24,15 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    image: '',
+    banner: '',
     type: 'WORKSHOP',
     status: 'UPCOMING',
     startDate: '',
     endDate: '',
+    registrationDeadline: '',
     location: '',
+    locationType: 'PHYSICAL',
     isOnline: false,
     onlineLink: '',
     maxAttendees: '',
@@ -37,6 +41,12 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
     price: '',
     currency: 'KES',
     paymentLink: '',
+    tags: '',
+    speakers: '',
+    agenda: '',
+    requirements: '',
+    contactEmail: '',
+    contactPhone: '',
   })
 
   useEffect(() => {
@@ -108,11 +118,15 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
       const payload: any = {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
+        image: formData.image.trim() || undefined,
+        banner: formData.banner.trim() || undefined,
         type: formData.type,
         status: formData.status,
         startDate: new Date(formData.startDate).toISOString(),
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+        registrationDeadline: formData.registrationDeadline ? new Date(formData.registrationDeadline).toISOString() : undefined,
         location: formData.location.trim() || undefined,
+        locationType: formData.locationType,
         isOnline: formData.isOnline,
         onlineLink: formData.onlineLink.trim() || undefined,
         maxAttendees: formData.maxAttendees ? parseInt(formData.maxAttendees) : undefined,
@@ -120,6 +134,12 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
         price: formData.isPaid ? parseFloat(formData.price) : undefined,
         currency: formData.isPaid ? formData.currency : undefined,
         paymentLink: formData.isPaid ? formData.paymentLink.trim() : undefined,
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : undefined,
+        speakers: formData.speakers ? formData.speakers.split(',').map(s => s.trim()).filter(s => s) : undefined,
+        agenda: formData.agenda.trim() || undefined,
+        requirements: formData.requirements.trim() || undefined,
+        contactEmail: formData.contactEmail.trim() || undefined,
+        contactPhone: formData.contactPhone.trim() || undefined,
       }
 
       // Only include clubId if it's provided (club events)
@@ -250,6 +270,34 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
               />
             </div>
 
+            {/* Image and Banner */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Event Image URL (Square/Thumbnail)
+                </label>
+                <input
+                  type="url"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Event Banner URL (Wide Banner)
+                </label>
+                <input
+                  type="url"
+                  value={formData.banner}
+                  onChange={(e) => setFormData({ ...formData, banner: e.target.value })}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
             {/* Type and Status */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -283,7 +331,7 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Start Date & Time *
@@ -307,43 +355,66 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
                   className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Registration Deadline
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.registrationDeadline}
+                  onChange={(e) => setFormData({ ...formData, registrationDeadline: e.target.value })}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
             </div>
 
-            {/* Online/Offline Toggle */}
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Online Event
+            {/* Location Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Location Type
               </label>
-              <input
-                type="checkbox"
-                checked={formData.isOnline}
-                onChange={(e) => setFormData({ ...formData, isOnline: e.target.checked })}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
+              <select
+                value={formData.locationType}
+                onChange={(e) => {
+                  const newType = e.target.value
+                  setFormData({ 
+                    ...formData, 
+                    locationType: newType,
+                    isOnline: newType === 'ONLINE' || newType === 'HYBRID'
+                  })
+                }}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="PHYSICAL">Physical</option>
+                <option value="ONLINE">Online</option>
+                <option value="HYBRID">Hybrid</option>
+              </select>
             </div>
 
             {/* Online Link or Location */}
-            {formData.isOnline ? (
+            {(formData.locationType === 'ONLINE' || formData.locationType === 'HYBRID') && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Online Link *
+                  Online Link {formData.locationType === 'ONLINE' ? '*' : ''}
                 </label>
                 <input
                   type="url"
-                  required={formData.isOnline}
+                  required={formData.locationType === 'ONLINE'}
                   value={formData.onlineLink}
                   onChange={(e) => setFormData({ ...formData, onlineLink: e.target.value })}
                   className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
                   placeholder="https://meet.google.com/..."
                 />
               </div>
-            ) : (
+            )}
+            {(formData.locationType === 'PHYSICAL' || formData.locationType === 'HYBRID') && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Location
+                  Physical Location {formData.locationType === 'PHYSICAL' ? '*' : ''}
                 </label>
                 <input
                   type="text"
+                  required={formData.locationType === 'PHYSICAL'}
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
@@ -432,6 +503,101 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
                 </div>
               </>
             )}
+
+            {/* Additional Event Details */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Additional Details</h3>
+              
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={formData.tags}
+                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="e.g., tech, workshop, python, beginner"
+                />
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Separate multiple tags with commas
+                </p>
+              </div>
+
+              {/* Speakers */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Speakers (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={formData.speakers}
+                  onChange={(e) => setFormData({ ...formData, speakers: e.target.value })}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="e.g., John Doe, Jane Smith"
+                />
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  List speaker names separated by commas
+                </p>
+              </div>
+
+              {/* Agenda */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Agenda/Schedule
+                </label>
+                <textarea
+                  value={formData.agenda}
+                  onChange={(e) => setFormData({ ...formData, agenda: e.target.value })}
+                  rows={4}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Event schedule and agenda..."
+                />
+              </div>
+
+              {/* Requirements */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Requirements
+                </label>
+                <textarea
+                  value={formData.requirements}
+                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                  rows={3}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="e.g., Bring laptop, basic Python knowledge, etc."
+                />
+              </div>
+
+              {/* Contact Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Contact Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.contactEmail}
+                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="events@northernbox.co.ke"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Contact Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.contactPhone}
+                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="+254712345678"
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* Submit Button */}
             <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

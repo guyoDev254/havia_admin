@@ -60,6 +60,12 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.MANAGE_CLUBS,
     Permission.MANAGE_EVENTS,
     Permission.SCHEDULE_EVENTS,
+    Permission.MANAGE_RESOURCES,
+    Permission.CREATE_CONTENT,
+    Permission.SEND_BROADCASTS,
+    Permission.VIEW_ENGAGEMENT_METRICS,
+    Permission.EXPORT_DATA,
+    Permission.MODERATE_POSTS, // For their club's posts
   ],
   PLATFORM_ADMIN: [
     Permission.MANAGE_USERS,

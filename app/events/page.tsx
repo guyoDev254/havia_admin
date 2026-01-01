@@ -19,6 +19,10 @@ interface Event {
   status: string
   startDate: string
   location: string
+  club?: {
+    id: string
+    name: string
+  }
   organizer: {
     firstName: string
     lastName: string
@@ -217,6 +221,9 @@ export default function EventsPage() {
                     Type
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Club
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     Date
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -250,6 +257,15 @@ export default function EventsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {event.type}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {event.club ? (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          {event.club.name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-500 italic">Platform Event</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {format(new Date(event.startDate), 'MMM dd, yyyy')}

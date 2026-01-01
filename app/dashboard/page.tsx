@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
 import { api } from '@/lib/api'
@@ -69,22 +69,11 @@ export default function DashboardPage() {
     resources: 0,
     posts: 0,
   })
-
-  useEffect(() => {
-    if (user) {
-      if (user.role === 'CLUB_MANAGER') {
-        fetchClubManagerDashboard()
-      } else {
-        fetchStatistics()
-      }
-    }
-  }, [user])
-
   const [studentStats, setStudentStats] = useState<any>(null)
   const [trendData, setTrendData] = useState<any>(null)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
 
-  const fetchClubManagerDashboard = async () => {
+  const fetchClubManagerDashboard = useCallback(async () => {
     try {
       setLoading(true)
       const managed = await api.get('/clubs/me/managed')
@@ -124,9 +113,9 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const [statsResponse, studentStatsResponse, trendsResponse, activityResponse] = await Promise.all([
         api.get('/admin/statistics'),
@@ -149,7 +138,17 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'CLUB_MANAGER') {
+        fetchClubManagerDashboard()
+      } else {
+        fetchStatistics()
+      }
+    }
+  }, [user, fetchClubManagerDashboard, fetchStatistics])
 
   const allStatCards = [
     {
@@ -228,127 +227,309 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-8">
-          {/* Header Section */}
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-white shadow-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-                <p className="text-blue-100 text-lg">
-                  Welcome back, <span className="font-semibold">{user?.firstName}</span>! 👋
-                </p>
-                <p className="text-blue-50 text-sm mt-1">
-                  Here's what's happening with your community today.
-                </p>
-              </div>
-              <div className="hidden md:block">
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
-                  <div className="text-3xl font-bold">
-                    {user?.role === 'CLUB_MANAGER' ? clubManagerTotals.members : stats?.users.total || 0}
-                  </div>
-                  <div className="text-blue-100 text-sm mt-1">
-                    {user?.role === 'CLUB_MANAGER' ? 'Members in your clubs' : 'Total Members'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Club Manager Overview */}
           {user?.role === 'CLUB_MANAGER' && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5 border border-gray-100 dark:border-gray-700">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Managed Clubs</div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{managedClubs.length}</div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5 border border-gray-100 dark:border-gray-700">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Events</div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{clubManagerTotals.events}</div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5 border border-gray-100 dark:border-gray-700">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Programs</div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{clubManagerTotals.programs}</div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5 border border-gray-100 dark:border-gray-700">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Resources</div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{clubManagerTotals.resources}</div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5 border border-gray-100 dark:border-gray-700">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Posts</div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{clubManagerTotals.posts}</div>
+            <div className="space-y-6">
+              {/* Welcome Section */}
+              <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-white shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold mb-2">Club Manager Dashboard</h2>
+                    <p className="text-blue-100 text-lg">
+                      Welcome back, <span className="font-semibold">{user?.firstName}</span>! 👋
+                    </p>
+                    <p className="text-blue-50 text-sm mt-1">
+                      Manage your club, engage with members, and track your community's growth.
+                    </p>
+                  </div>
+                  <div className="hidden md:block">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
+                      <div className="text-3xl font-bold">{managedClubs.length}</div>
+                      <div className="text-blue-100 text-sm mt-1">
+                        {managedClubs.length === 1 ? 'Club Managed' : 'Clubs Managed'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">My Managed Clubs</h2>
-                  <Link href="/clubs" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                    View all →
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                      <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                    {clubManagerTotals.members}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Total Members</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                      <Calendar className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                    {clubManagerTotals.events}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Events</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                      <BookOpen className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                    {clubManagerTotals.programs}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Programs</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
+                      <FileText className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                    {clubManagerTotals.resources}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Resources</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-3 bg-pink-100 dark:bg-pink-900/30 rounded-xl">
+                      <MessageSquare className="h-6 w-6 text-pink-600 dark:text-pink-400" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                    {clubManagerTotals.posts}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Posts</div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              {managedClubs.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Link
+                      href={`/events/create?clubId=${managedClubs[0]?.club.id}`}
+                      className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-700 transition-all group"
+                    >
+                      <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                        <Calendar className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                          Create Event
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Schedule new event</div>
+                      </div>
+                    </Link>
+                    <Link
+                      href={`/clubs/${managedClubs[0]?.club.id}?tab=members`}
+                      className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all group"
+                    >
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                        <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                          Manage Members
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">View & invite members</div>
+                      </div>
+                    </Link>
+                    <Link
+                      href={`/clubs/${managedClubs[0]?.club.id}?tab=programs`}
+                      className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-700 transition-all group"
+                    >
+                      <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
+                        <BookOpen className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400">
+                          Programs
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Manage programs</div>
+                      </div>
+                    </Link>
+                    <Link
+                      href={`/clubs/${managedClubs[0]?.club.id}?tab=analytics`}
+                      className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all group"
+                    >
+                      <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50 transition-colors">
+                        <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                          Analytics
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">View insights</div>
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Managed Club Card */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">My Managed Club</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Overview and quick access to your club
+                    </p>
+                  </div>
+                  <Link
+                    href={`/clubs/${managedClubs[0]?.club.id}`}
+                    className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    View Full Details →
                   </Link>
                 </div>
 
                 {managedClubs.length === 0 ? (
-                  <div className="text-gray-500 dark:text-gray-400">
-                    No clubs assigned yet. Ask a Super Admin/Platform Admin to assign you as a club manager.
+                  <div className="text-center py-12">
+                    <div className="inline-flex p-4 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+                      <Shield className="h-12 w-12 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      No clubs assigned yet
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Ask a Super Admin or Platform Admin to assign you as a club manager.
+                    </p>
+                    <div className="inline-block p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-800 dark:text-blue-200">
+                      <strong>Note:</strong> Club managers can manage multiple clubs.
+                    </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <>
+                    {managedClubs.length > 0 && (
+                      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                        <div className="flex items-start gap-3">
+                          <div className="p-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+                            <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                              ✓ Active Manager
+                            </p>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                              You are managing <strong>{managedClubs.length}</strong> {managedClubs.length === 1 ? 'club' : 'clubs'}.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {managedClubs.map((m) => {
                       const a = managedClubsAnalytics[m.club.id]?.overview
                       return (
                         <div
                           key={m.club.id}
-                          className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:shadow-lg transition-shadow"
-                        >
-                          <div className="flex items-center justify-between">
+                            className="border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-6 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-700 transition-all bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
+                          >
+                            {/* Club Header */}
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  {m.club.logo ? (
+                                    <img
+                                      src={m.club.logo}
+                                      alt={m.club.name}
+                                      className="h-14 w-14 rounded-xl object-cover border-2 border-gray-200 dark:border-gray-700"
+                                    />
+                                  ) : (
+                                    <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl border-2 border-gray-200 dark:border-gray-700">
+                                      {m.club.name.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
                             <div>
-                              <div className="text-lg font-bold text-gray-900 dark:text-white">{m.club.name}</div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">{m.club.category}</div>
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                                      {m.club.name}
+                                    </h3>
+                                    <span className="inline-block mt-1 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md">
+                                      {m.club.category}
+                                    </span>
+                                  </div>
+                                </div>
                             </div>
                             <Link
                               href={`/clubs/${m.club.id}`}
-                              className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
                             >
-                              Open
+                                Open →
                             </Link>
                           </div>
 
-                          <div className="grid grid-cols-4 gap-3 mt-4 text-sm">
-                            <div>
-                              <div className="text-gray-500 dark:text-gray-400">Members</div>
-                              <div className="font-bold text-gray-900 dark:text-white">{a?.memberCount ?? m.club._count?.members ?? 0}</div>
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Users className="h-4 w-4 text-blue-500" />
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">Members</span>
+                                </div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                                  {a?.memberCount ?? m.club._count?.members ?? 0}
+                                </div>
+                              </div>
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Calendar className="h-4 w-4 text-purple-500" />
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">Events</span>
+                                </div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                                  {a?.eventCount ?? m.club._count?.events ?? 0}
+                                </div>
+                              </div>
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <BookOpen className="h-4 w-4 text-green-500" />
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">Programs</span>
+                                </div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                                  {a?.programCount ?? 0}
+                                </div>
                             </div>
-                            <div>
-                              <div className="text-gray-500 dark:text-gray-400">Events</div>
-                              <div className="font-bold text-gray-900 dark:text-white">{a?.eventCount ?? m.club._count?.events ?? 0}</div>
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <FileText className="h-4 w-4 text-orange-500" />
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">Resources</span>
                             </div>
-                            <div>
-                              <div className="text-gray-500 dark:text-gray-400">Programs</div>
-                              <div className="font-bold text-gray-900 dark:text-white">{a?.programCount ?? 0}</div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                                  {a?.resourceCount ?? 0}
                             </div>
-                            <div>
-                              <div className="text-gray-500 dark:text-gray-400">Resources</div>
-                              <div className="font-bold text-gray-900 dark:text-white">{a?.resourceCount ?? 0}</div>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-2 mt-4">
+                            {/* Action Buttons */}
+                            <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
                             <Link
                               href={`/events/create?clubId=${m.club.id}`}
-                              className="text-sm px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
                             >
+                                <Calendar className="h-4 w-4" />
                               Create Event
                             </Link>
                             <Link
-                              href={`/clubs/${m.club.id}`}
-                              className="text-sm px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                href={`/clubs/${m.club.id}?tab=members`}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
                             >
-                              Programs/Resources
+                                <Users className="h-4 w-4" />
+                                Members
                             </Link>
                             <Link
-                              href={`/clubs/${m.club.id}`}
-                              className="text-sm px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                href={`/clubs/${m.club.id}?tab=analytics`}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
                             >
+                                <BarChart3 className="h-4 w-4" />
                               Analytics
                             </Link>
                           </div>
@@ -356,13 +537,42 @@ export default function DashboardPage() {
                       )
                     })}
                   </div>
+                  </>
                 )}
               </div>
-            </>
+            </div>
           )}
 
-          {/* Student Statistics */}
-          {studentStats && (
+          {/* Regular Admin Dashboard - Only show if NOT a club manager */}
+          {user?.role !== 'CLUB_MANAGER' && (
+            <>
+              {/* Header Section */}
+              <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-white shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
+                    <p className="text-blue-100 text-lg">
+                      Welcome back, <span className="font-semibold">{user?.firstName}</span>! 👋
+                    </p>
+                    <p className="text-blue-50 text-sm mt-1">
+                      Here's what's happening with your community today.
+                    </p>
+                  </div>
+                  <div className="hidden md:block">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
+                      <div className="text-3xl font-bold">
+                        {stats?.users.total || 0}
+                      </div>
+                      <div className="text-blue-100 text-sm mt-1">
+                        Total Members
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Student Statistics */}
+              {studentStats && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <GraduationCap className="h-6 w-6" />
@@ -706,6 +916,8 @@ export default function DashboardPage() {
               <p className="text-gray-600 dark:text-gray-400">Financial reports and analytics (Super Admin only)</p>
             </div>
           </PermissionGuard>
+            </>
+          )}
         </div>
       </Layout>
     </ProtectedRoute>

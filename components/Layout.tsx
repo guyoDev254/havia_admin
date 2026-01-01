@@ -32,6 +32,15 @@ import {
   ChevronDown,
   ChevronRight,
   History,
+  User,
+  Key,
+  HelpCircle,
+  FolderKanban,
+  DollarSign,
+  Target,
+  ClipboardList,
+  PresentationChart,
+  Megaphone,
 } from 'lucide-react'
 
 interface NavigationItem {
@@ -80,7 +89,10 @@ const navigationSections: NavigationSection[] = [
     title: 'Community',
     items: [
       { name: 'Clubs', href: '/clubs', icon: UsersRound, permission: Permission.MANAGE_CLUBS },
+      { name: 'My Managed Clubs', href: '/clubs/managed', icon: Shield, permission: Permission.MANAGE_CLUBS, section: 'club_manager' },
       { name: 'Club Managers', href: '/clubs/managers', icon: Users, permission: Permission.MANAGE_CLUBS },
+      { name: 'Club Features', href: '/clubs/features', icon: FolderKanban, permission: Permission.MANAGE_CLUBS, section: 'club_manager' },
+      { name: 'Club Reports', href: '/clubs/reports', icon: PresentationChart, permission: Permission.MANAGE_CLUBS, section: 'club_manager' },
       { name: 'Community Partners', href: '/community-partners', icon: Users, permission: Permission.APPROVE_CLUBS },
       { name: 'Events', href: '/events', icon: Calendar, permission: Permission.MANAGE_EVENTS },
     ],
@@ -138,6 +150,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { isDark, toggleTheme } = useTheme()
   const { hasPermission, isSuperAdmin } = usePermissions()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     navigationSections.forEach((section) => {
@@ -152,10 +165,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       ...section,
       items: section.items.filter((item) => {
         if (isSuperAdmin()) return true
-        return hasPermission(item.permission)
+        
+        // Filter by permission
+        if (!hasPermission(item.permission)) return false
+        
+        // For club manager specific items, only show if user is a club manager
+        if (item.section === 'club_manager' && user?.role !== 'CLUB_MANAGER') {
+          return false
+        }
+        
+        return true
       }),
     })).filter((section) => section.items.length > 0)
-  }, [hasPermission, isSuperAdmin])
+  }, [hasPermission, isSuperAdmin, user?.role])
 
   const isSectionActive = useCallback((section: NavigationSection) => {
     return section.items.some(
@@ -418,10 +440,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <span className="text-gray-400 dark:text-gray-500">Overview</span>
               </div>
             </div>
-            <div className="ml-4 flex items-center gap-3">
+            <div className="ml-4 flex items-center gap-2">
               <button
                 onClick={toggleTheme}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {isDark ? (
                   <Sun className="h-4 w-4" />
@@ -430,21 +453,105 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 )}
                 <span className="hidden sm:inline">{isDark ? 'Light' : 'Dark'}</span>
               </button>
-              <Link
-                href="/settings/change-password"
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Settings</span>
-              </Link>
-              <div className="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
+              
+              {/* Profile Dropdown */}
+              <div className="relative" data-profile-menu>
+                <button
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </div>
+                  <span className="hidden sm:inline font-medium">{user?.firstName} {user?.lastName}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {profileMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setProfileMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-20">
+                      <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {user?.firstName} {user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                        {isSuperAdmin() && (
+                          <span className="inline-block mt-1 px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full">
+                            SUPER ADMIN
+                          </span>
+                        )}
+                      </div>
+                      <div className="py-1">
+                        <Link
+                          href={`/users/${user?.id}`}
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <User className="h-4 w-4" />
+                          View Profile
+                        </Link>
+                        <Link
+                          href={`/users/${user?.id}?edit=true`}
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Edit Profile
+                        </Link>
+                        <Link
+                          href="/settings/change-password"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <Key className="h-4 w-4" />
+                          Change Password
+                        </Link>
+                        <Link
+                          href="/settings"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </Link>
+                        {user?.role === 'CLUB_MANAGER' && (
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                            Manager Dashboard
+                          </Link>
+                        )}
+                        <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                        <Link
+                          href="/help"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                          Help & Support
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setProfileMenuOpen(false)
+                            handleLogout()
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

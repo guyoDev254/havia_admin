@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, Permission } from '@/hooks/usePermissions'
 import { useSweetAlert } from '@/hooks/useSweetAlert'
@@ -186,11 +186,13 @@ function UserAuditLogs({ userId }: { userId: string }) {
 export default function UserDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user: currentUser } = useAuth()
   const { hasPermission, isSuperAdmin } = usePermissions()
   const { showError, showSuccess, showWarning, showConfirm } = useSweetAlert()
   const [user, setUser] = useState<UserDetails | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'mentorship' | 'moderation' | 'audit'>('overview')
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [showSuspendModal, setShowSuspendModal] = useState(false)
@@ -199,6 +201,17 @@ export default function UserDetailPage() {
   const [suspendDuration, setSuspendDuration] = useState('7')
   const [messageText, setMessageText] = useState('')
   const [newRole, setNewRole] = useState('')
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    bio: '',
+    phone: '',
+    location: '',
+    education: '',
+    occupation: '',
+    skills: [] as string[],
+    interests: [] as string[],
+  })
 
   const ALL_ROLES = [
     'MEMBER',
@@ -220,8 +233,13 @@ export default function UserDetailPage() {
   useEffect(() => {
     if (params.id) {
       fetchUserDetails()
+      // Check if edit mode is requested via query parameter
+      const editParam = searchParams?.get('edit')
+      if (editParam === 'true' && currentUser?.id === params.id) {
+        setIsEditMode(true)
+      }
     }
-  }, [params.id])
+  }, [params.id, searchParams, currentUser?.id])
 
   const fetchUserDetails = async () => {
     try {
@@ -230,7 +248,7 @@ export default function UserDetailPage() {
       const userData = response.data
       
       // Ensure all array fields have default values
-      setUser({
+      const userDataFormatted = {
         ...userData,
         clubs: userData.clubs || [],
         userBadges: userData.userBadges || [],
@@ -246,10 +264,36 @@ export default function UserDetailPage() {
           reportsFiled: 0,
           reportsAgainst: 0,
         }
-      })
+      }
+      setUser(userDataFormatted)
+      
+      // Initialize edit form data when user data is loaded
+      if (currentUser?.id === params.id) {
+        setEditFormData({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          bio: userData.bio || '',
+          phone: userData.phone || '',
+          location: userData.location || '',
+          education: userData.education || '',
+          occupation: userData.occupation || '',
+          skills: userData.skills || [],
+          interests: userData.interests || [],
+        })
+      }
     } catch (error: any) {
       console.error('Error fetching user details:', error)
-      showError('Failed to Load User Details', error.response?.data?.message || 'An error occurred while loading user details')
+      const errorMessage = error.response?.data?.message || error.message || 'An error occurred while loading user details'
+      
+      // If it's a 403 and user is viewing their own profile, show a helpful message
+      if (error.response?.status === 403 && currentUser?.id === params.id) {
+        showError(
+          'Access Denied', 
+          'Unable to load your profile. Please try refreshing the page or contact support if the issue persists.'
+        )
+      } else {
+        showError('Failed to Load User Details', errorMessage)
+      }
     } finally {
       setLoading(false)
     }
@@ -348,6 +392,25 @@ export default function UserDetailPage() {
     }
   }
 
+  const handleSaveProfile = async () => {
+    if (currentUser?.id !== params.id) {
+      showError('Permission Denied', 'You can only edit your own profile')
+      return
+    }
+
+    try {
+      setLoading(true)
+      await api.put(`/users/me`, editFormData)
+      showSuccess('Profile Updated', 'Your profile has been updated successfully')
+      setIsEditMode(false)
+      fetchUserDetails() // Refresh user data
+    } catch (error: any) {
+      showError('Update Failed', error.response?.data?.message || 'Failed to update profile')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -391,6 +454,32 @@ export default function UserDetailPage() {
               <p className="text-gray-500 dark:text-gray-400">{user.email}</p>
             </div>
             <div className="flex gap-2">
+              {/* Show Edit button when viewing own profile */}
+              {currentUser?.id === params.id && !isEditMode && (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Profile
+                </button>
+              )}
+              {isEditMode && (
+                <>
+                  <button
+                    onClick={() => setIsEditMode(false)}
+                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveProfile}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                </>
+              )}
               <PermissionGuard permission={Permission.EXPORT_DATA}>
                 <button
                   onClick={handleExportData}
@@ -513,15 +602,109 @@ export default function UserDetailPage() {
               {/* Overview Tab */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
-                  {/* Basic Info */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Basic Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center gap-3">
-                        <Mail className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{user.email}</p>
+                  {/* Edit Mode Form */}
+                  {isEditMode && currentUser?.id === params.id ? (
+                    <div className="space-y-6">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                        <p className="text-sm text-blue-800 dark:text-blue-200">
+                          <strong>Edit Mode:</strong> You are editing your own profile. Changes will be saved to your account.
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Edit Profile</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              First Name
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.firstName}
+                              onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Last Name
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.lastName}
+                              onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Phone
+                            </label>
+                            <input
+                              type="tel"
+                              value={editFormData.phone}
+                              onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Location
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.location}
+                              onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Education
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.education}
+                              onChange={(e) => setEditFormData({ ...editFormData, education: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Occupation
+                            </label>
+                            <input
+                              type="text"
+                              value={editFormData.occupation}
+                              onChange={(e) => setEditFormData({ ...editFormData, occupation: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Bio
+                            </label>
+                            <textarea
+                              value={editFormData.bio}
+                              onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })}
+                              rows={4}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              placeholder="Tell us about yourself..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Basic Info */}
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Basic Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex items-center gap-3">
+                            <Mail className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                              <p className="font-medium text-gray-900 dark:text-white">{user.email}</p>
                           {user.isEmailVerified ? (
                             <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
                               <CheckCircle className="h-3 w-3" />
@@ -682,6 +865,8 @@ export default function UserDetailPage() {
                         ))}
                       </div>
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
               )}

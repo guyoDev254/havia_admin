@@ -8,8 +8,10 @@ import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
-import { Shield, AlertTriangle, UserX, CheckCircle, XCircle, MessageSquare, FileText, Eye } from 'lucide-react'
+import { Shield, AlertTriangle, UserX, CheckCircle, XCircle, MessageSquare, FileText, Eye, Download } from 'lucide-react'
 import { format } from 'date-fns'
+import DownloadModal from '@/components/DownloadModal'
+import { ExportFormat, exportTableToCSV, exportTableToExcel, exportToPDF, exportToCSV, exportToExcel } from '@/lib/report-export'
 
 interface Report {
   id: string
@@ -96,6 +98,8 @@ export default function ModerationPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('pending')
   const [stats, setStats] = useState<any>(null)
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [showDownloadModal, setShowDownloadModal] = useState(false)
+  const [downloadType, setDownloadType] = useState<'single' | 'all'>('all')
 
   useEffect(() => {
     if (user && hasPermission(Permission.VIEW_REPORTS)) {
@@ -178,6 +182,75 @@ export default function ModerationPage() {
     }
   }
 
+  const handleDownload = (format: ExportFormat) => {
+    try {
+      if (downloadType === 'single' && selectedReport) {
+        // Export single report
+        const reportData = {
+          title: `Moderation Report - ${selectedReport.type}`,
+          type: selectedReport.type,
+          content: `Report Type: ${selectedReport.type}\nEntity Type: ${selectedReport.entityType || 'N/A'}\nReason: ${selectedReport.reason}\nDescription: ${selectedReport.description || 'N/A'}\nStatus: ${selectedReport.status}\nReported User: ${selectedReport.reportedUser ? `${selectedReport.reportedUser.firstName} ${selectedReport.reportedUser.lastName} (${selectedReport.reportedUser.email})` : 'N/A'}\nReporter: ${selectedReport.reporter ? `${selectedReport.reporter.firstName} ${selectedReport.reporter.lastName}` : 'N/A'}\nCreated: ${format(new Date(selectedReport.createdAt), 'PPpp')}\nResolved: ${selectedReport.resolvedAt ? format(new Date(selectedReport.resolvedAt), 'PPpp') : 'Pending'}`,
+          createdAt: selectedReport.createdAt,
+        }
+
+        switch (format) {
+          case 'pdf':
+            exportToPDF(reportData)
+            showSuccess('Success', 'Report downloaded as PDF')
+            break
+          case 'excel':
+            exportToExcel(reportData)
+            showSuccess('Success', 'Report downloaded as Excel')
+            break
+          case 'csv':
+            exportToCSV(reportData)
+            showSuccess('Success', 'Report downloaded as CSV')
+            break
+        }
+      } else {
+        // Export all reports
+        const headers = ['ID', 'Type', 'Entity Type', 'Reason', 'Status', 'Reported User', 'Reporter', 'Created At', 'Resolved At']
+        const data = reports.map((report) => ({
+          'ID': report.id,
+          'Type': report.type,
+          'Entity Type': report.entityType || 'N/A',
+          'Reason': report.reason,
+          'Status': report.status,
+          'Reported User': report.reportedUser ? `${report.reportedUser.firstName} ${report.reportedUser.lastName} (${report.reportedUser.email})` : 'N/A',
+          'Reporter': report.reporter ? `${report.reporter.firstName} ${report.reporter.lastName}` : 'N/A',
+          'Created At': format(new Date(report.createdAt), 'PPpp'),
+          'Resolved At': report.resolvedAt ? format(new Date(report.resolvedAt), 'PPpp') : 'Pending',
+        }))
+
+        const filename = `moderation-reports-${format(new Date(), 'yyyy-MM-dd')}`
+
+        switch (format) {
+          case 'pdf':
+            // For multiple reports, create a summary PDF
+            const summaryData = {
+              title: 'Moderation Reports Summary',
+              type: 'MODERATION_SUMMARY',
+              content: `Total Reports: ${reports.length}\nPending: ${reports.filter(r => r.status === 'PENDING').length}\nResolved: ${reports.filter(r => r.status === 'RESOLVED').length}\nDismissed: ${reports.filter(r => r.status === 'DISMISSED').length}\n\nReport Details:\n${reports.map((r, i) => `${i + 1}. ${r.type} - ${r.reason} (${r.status})`).join('\n')}`,
+              createdAt: new Date().toISOString(),
+            }
+            exportToPDF(summaryData, `${filename}.pdf`)
+            showSuccess('Success', 'Reports summary downloaded as PDF')
+            break
+          case 'excel':
+            exportTableToExcel(data, headers, `${filename}.xlsx`, 'Moderation Reports')
+            showSuccess('Success', 'Reports downloaded as Excel')
+            break
+          case 'csv':
+            exportTableToCSV(data, headers, `${filename}.csv`)
+            showSuccess('Success', 'Reports downloaded as CSV')
+            break
+        }
+      }
+    } catch (error: any) {
+      showError('Error', error.message || 'Failed to download reports')
+    }
+  }
+
   if (!hasPermission(Permission.VIEW_REPORTS)) {
     return (
       <ProtectedRoute>
@@ -197,14 +270,26 @@ export default function ModerationPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl p-6 text-white shadow-xl">
-            <div className="flex items-center gap-4">
-              <Shield className="h-8 w-8" />
-              <div>
-                <h1 className="text-3xl font-bold mb-2">Moderation & Safety</h1>
-                <p className="text-red-100">
-                  Review reports, flagged content, and manage community safety
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Shield className="h-8 w-8" />
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">Moderation & Safety</h1>
+                  <p className="text-red-100">
+                    Review reports, flagged content, and manage community safety
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={() => {
+                  setDownloadType('all')
+                  setShowDownloadModal(true)
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm"
+              >
+                <Download className="h-5 w-5" />
+                Export Reports
+              </button>
             </div>
           </div>
 
@@ -334,6 +419,16 @@ export default function ModerationPage() {
                   )}
                 </div>
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-2 justify-end">
+                  <button
+                    onClick={() => {
+                      setDownloadType('single')
+                      setShowDownloadModal(true)
+                    }}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </button>
                   <button
                     onClick={() => setSelectedReport(null)}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
@@ -533,6 +628,17 @@ export default function ModerationPage() {
             )}
           </div>
         </div>
+        <DownloadModal
+          isOpen={showDownloadModal}
+          onClose={() => {
+            setShowDownloadModal(false)
+            if (downloadType === 'single') {
+              setSelectedReport(null)
+            }
+          }}
+          onDownload={handleDownload}
+          title={downloadType === 'single' ? 'Download Report' : 'Export All Reports'}
+        />
       </Layout>
     </ProtectedRoute>
   )
