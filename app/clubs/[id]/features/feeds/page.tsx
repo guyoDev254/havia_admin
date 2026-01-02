@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useSweetAlert } from '@/hooks/useSweetAlert'
-import { MessageSquare, Plus, Megaphone, ChatBubbleLeftRight, ChartBar, Pin, ArrowLeft, Filter, Search, Eye, Trash2 } from 'lucide-react'
+import { MessageSquare, Plus, Megaphone, BarChart3, Pin, ArrowLeft, Filter, Search, Eye, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 
@@ -120,9 +120,9 @@ export default function ClubFeedsPage() {
       case 'ANNOUNCEMENT':
         return Megaphone
       case 'POLL':
-        return ChartBar
+        return BarChart3
       default:
-        return ChatBubbleLeftRight
+        return MessageSquare
     }
   }
 

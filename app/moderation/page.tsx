@@ -9,7 +9,7 @@ import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import { Shield, AlertTriangle, UserX, CheckCircle, XCircle, MessageSquare, FileText, Eye, Download } from 'lucide-react'
-import { format } from 'date-fns'
+import { format as formatDate } from 'date-fns'
 import DownloadModal from '@/components/DownloadModal'
 import { ExportFormat, exportTableToCSV, exportTableToExcel, exportToPDF, exportToCSV, exportToExcel } from '@/lib/report-export'
 
@@ -189,7 +189,7 @@ export default function ModerationPage() {
         const reportData = {
           title: `Moderation Report - ${selectedReport.type}`,
           type: selectedReport.type,
-          content: `Report Type: ${selectedReport.type}\nEntity Type: ${selectedReport.entityType || 'N/A'}\nReason: ${selectedReport.reason}\nDescription: ${selectedReport.description || 'N/A'}\nStatus: ${selectedReport.status}\nReported User: ${selectedReport.reportedUser ? `${selectedReport.reportedUser.firstName} ${selectedReport.reportedUser.lastName} (${selectedReport.reportedUser.email})` : 'N/A'}\nReporter: ${selectedReport.reporter ? `${selectedReport.reporter.firstName} ${selectedReport.reporter.lastName}` : 'N/A'}\nCreated: ${format(new Date(selectedReport.createdAt), 'PPpp')}\nResolved: ${selectedReport.resolvedAt ? format(new Date(selectedReport.resolvedAt), 'PPpp') : 'Pending'}`,
+          content: `Report Type: ${selectedReport.type}\nEntity Type: ${selectedReport.entityType || 'N/A'}\nReason: ${selectedReport.reason}\nDescription: ${selectedReport.description || 'N/A'}\nStatus: ${selectedReport.status}\nReported User: ${selectedReport.reportedUser ? `${selectedReport.reportedUser.firstName} ${selectedReport.reportedUser.lastName} (${selectedReport.reportedUser.email})` : 'N/A'}\nReporter: ${selectedReport.reporter ? `${selectedReport.reporter.firstName} ${selectedReport.reporter.lastName}` : 'N/A'}\nCreated: ${formatDate(new Date(selectedReport.createdAt), 'PPpp')}\nResolved: ${selectedReport.resolvedAt ? formatDate(new Date(selectedReport.resolvedAt), 'PPpp') : 'Pending'}`,
           createdAt: selectedReport.createdAt,
         }
 
@@ -218,11 +218,11 @@ export default function ModerationPage() {
           'Status': report.status,
           'Reported User': report.reportedUser ? `${report.reportedUser.firstName} ${report.reportedUser.lastName} (${report.reportedUser.email})` : 'N/A',
           'Reporter': report.reporter ? `${report.reporter.firstName} ${report.reporter.lastName}` : 'N/A',
-          'Created At': format(new Date(report.createdAt), 'PPpp'),
-          'Resolved At': report.resolvedAt ? format(new Date(report.resolvedAt), 'PPpp') : 'Pending',
+          'Created At': formatDate(new Date(report.createdAt), 'PPpp'),
+          'Resolved At': report.resolvedAt ? formatDate(new Date(report.resolvedAt), 'PPpp') : 'Pending',
         }))
 
-        const filename = `moderation-reports-${format(new Date(), 'yyyy-MM-dd')}`
+        const filename = `moderation-reports-${formatDate(new Date(), 'yyyy-MM-dd')}`
 
         switch (format) {
           case 'pdf':
@@ -406,14 +406,14 @@ export default function ModerationPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</label>
                     <p className="mt-1 text-gray-900 dark:text-white">
-                      {format(new Date(selectedReport.createdAt), 'PPpp')}
+                      {formatDate(new Date(selectedReport.createdAt), 'PPpp')}
                     </p>
                   </div>
                   {selectedReport.resolvedAt && (
                     <div>
                       <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Resolved At</label>
                       <p className="mt-1 text-gray-900 dark:text-white">
-                        {format(new Date(selectedReport.resolvedAt), 'PPpp')}
+                        {formatDate(new Date(selectedReport.resolvedAt), 'PPpp')}
                       </p>
                     </div>
                   )}
@@ -521,7 +521,7 @@ export default function ModerationPage() {
                             {report.type}
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {format(new Date(report.createdAt), 'MMM dd, yyyy • h:mm a')}
+                            {formatDate(new Date(report.createdAt), 'MMM dd, yyyy • h:mm a')}
                           </span>
                         </div>
                         <p className="text-gray-900 dark:text-white font-medium mb-1">{report.reason}</p>

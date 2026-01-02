@@ -20,6 +20,7 @@ interface Club {
   category: string
   logo?: string
   image?: string
+  banner?: string
   isActive: boolean
   isPublic: boolean
   createdAt: string

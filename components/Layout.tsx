@@ -39,7 +39,6 @@ import {
   DollarSign,
   Target,
   ClipboardList,
-  PresentationChart,
   Megaphone,
 } from 'lucide-react'
 
@@ -92,7 +91,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'My Managed Clubs', href: '/clubs/managed', icon: Shield, permission: Permission.MANAGE_CLUBS, section: 'club_manager' },
       { name: 'Club Managers', href: '/clubs/managers', icon: Users, permission: Permission.MANAGE_CLUBS },
       { name: 'Club Features', href: '/clubs/features', icon: FolderKanban, permission: Permission.MANAGE_CLUBS, section: 'club_manager' },
-      { name: 'Club Reports', href: '/clubs/reports', icon: PresentationChart, permission: Permission.MANAGE_CLUBS, section: 'club_manager' },
+      { name: 'Club Reports', href: '/clubs/reports', icon: BarChart3, permission: Permission.MANAGE_CLUBS, section: 'club_manager' },
       { name: 'Community Partners', href: '/community-partners', icon: Users, permission: Permission.APPROVE_CLUBS },
       { name: 'Events', href: '/events', icon: Calendar, permission: Permission.MANAGE_EVENTS },
     ],

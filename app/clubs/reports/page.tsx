@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { PresentationChart, FileText, Download, Calendar, BarChart3, ArrowRight } from 'lucide-react'
+import { BarChart3, FileText, Download, Calendar, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 interface ManagedClub {
@@ -104,7 +104,7 @@ export default function ClubReportsPage() {
       name: 'Financial Report',
       description: 'Financial contributions and usage summary',
       type: 'FINANCIAL',
-      icon: PresentationChart,
+      icon: BarChart3,
       color: 'bg-purple-500',
     },
     {
@@ -132,7 +132,7 @@ export default function ClubReportsPage() {
           {managedClubs.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-12 text-center">
               <div className="inline-flex p-4 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
-                <PresentationChart className="h-12 w-12 text-gray-400" />
+                <BarChart3 className="h-12 w-12 text-gray-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 No clubs assigned yet

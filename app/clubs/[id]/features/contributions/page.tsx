@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useSweetAlert } from '@/hooks/useSweetAlert'
-import { Users, Plus, ArrowLeft, Filter, Search, CheckCircle2, DollarSign, Clock, HandHeart } from 'lucide-react'
+import { Users, Plus, ArrowLeft, Filter, Search, CheckCircle2, DollarSign, Clock, HeartHandshake } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 
@@ -117,7 +117,7 @@ export default function ClubContributionsPage() {
       case 'VOLUNTEER':
         return Users
       default:
-        return HandHeart
+        return HeartHandshake
     }
   }
 
@@ -211,7 +211,7 @@ export default function ClubContributionsPage() {
 
           {filteredContributions.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-12 text-center">
-              <HandHeart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <HeartHandshake className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No contributions yet</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Start receiving contributions from members and supporters.</p>
               <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">Create First Contribution</button>

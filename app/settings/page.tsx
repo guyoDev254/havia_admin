@@ -178,7 +178,7 @@ export default function SettingsPage() {
                   const Icon = item.icon
                   return (
                     <div key={itemIndex} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      {item.href ? (
+                      {'href' in item && item.href ? (
                         <Link href={item.href} className="flex items-start justify-between group">
                           <div className="flex items-start gap-4 flex-1">
                             <div className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-700 ${item.color}`}>
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                             <div className="flex-1">
                               <h3 className="font-semibold text-gray-900 dark:text-white">{item.title}</h3>
                               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.description}</p>
-                              {item.action && <div className="mt-4">{item.action}</div>}
+                              {'action' in item && item.action && <div className="mt-4">{item.action}</div>}
                             </div>
                           </div>
                         </div>

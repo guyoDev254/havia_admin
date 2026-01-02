@@ -8,7 +8,7 @@ import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import { History, Search, Filter, User, Shield, Calendar, FileText, ArrowUpDown, Download } from 'lucide-react'
-import { format } from 'date-fns'
+import { format as formatDate } from 'date-fns'
 import DownloadModal from '@/components/DownloadModal'
 import { ExportFormat, exportTableToCSV, exportTableToExcel, exportToPDF } from '@/lib/report-export'
 
@@ -120,17 +120,17 @@ export default function AuditLogsPage() {
         'Admin': `${log.admin.firstName} ${log.admin.lastName} (${log.admin.email})`,
         'User': log.user ? `${log.user.firstName} ${log.user.lastName} (${log.user.email})` : 'N/A',
         'Reason': log.reason || 'N/A',
-        'Created At': format(new Date(log.createdAt), 'PPpp'),
+        'Created At': formatDate(new Date(log.createdAt), 'PPpp'),
       }))
 
-      const filename = `audit-logs-${format(new Date(), 'yyyy-MM-dd')}`
+      const filename = `audit-logs-${formatDate(new Date(), 'yyyy-MM-dd')}`
 
       switch (format) {
         case 'pdf':
           const summaryData = {
             title: 'Audit Logs Summary',
             type: 'AUDIT_LOG',
-            content: `Total Logs: ${logs.length}\n\nLog Details:\n${logs.map((log, i) => `${i + 1}. ${log.action} on ${log.entity} by ${log.admin.firstName} ${log.admin.lastName} at ${format(new Date(log.createdAt), 'PPpp')}`).join('\n')}`,
+            content: `Total Logs: ${logs.length}\n\nLog Details:\n${logs.map((log, i) => `${i + 1}. ${log.action} on ${log.entity} by ${log.admin.firstName} ${log.admin.lastName} at ${formatDate(new Date(log.createdAt), 'PPpp')}`).join('\n')}`,
             createdAt: new Date().toISOString(),
           }
           exportToPDF(summaryData, `${filename}.pdf`)
@@ -330,10 +330,10 @@ export default function AuditLogsPage() {
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <div>
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {format(new Date(log.createdAt), 'MMM dd, yyyy')}
+                                {formatDate(new Date(log.createdAt), 'MMM dd, yyyy')}
                               </div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {format(new Date(log.createdAt), 'HH:mm:ss')}
+                                {formatDate(new Date(log.createdAt), 'HH:mm:ss')}
                               </div>
                             </div>
                           </div>
