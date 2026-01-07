@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { usePermissions, Permission } from '@/hooks/usePermissions'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useSweetAlert } from '@/hooks/useSweetAlert'
+import PermissionGuard from '@/components/PermissionGuard'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { Trash2, Plus, Search } from 'lucide-react'
+import { Trash2, Plus, Search, Download } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Event {
@@ -35,7 +37,8 @@ interface Event {
 
 export default function EventsPage() {
   const { user } = useAuth()
-  const { showError, showConfirm } = useSweetAlert()
+  const { hasPermission } = usePermissions()
+  const { showError, showSuccess, showConfirm } = useSweetAlert()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [searchLoading, setSearchLoading] = useState(false)
@@ -140,6 +143,31 @@ export default function EventsPage() {
     }
   }
 
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter) params.append('status', statusFilter)
+      
+      const url = `/admin/events/export${params.toString() ? '?' + params.toString() : ''}`
+      const response = await api.get(url, { responseType: 'blob' })
+      
+      const blob = new Blob([response.data], { type: 'text/csv' })
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `events-export-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      showSuccess('Export Successful', 'Events data has been exported successfully')
+    } catch (error: any) {
+      console.error('Error exporting events:', error)
+      showError('Export Failed', error.response?.data?.message || 'Failed to export events data')
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -162,7 +190,16 @@ export default function EventsPage() {
               Manage all events and workshops
             </p>
           </div>
-          <div className="ml-4">
+          <div className="ml-4 flex gap-3">
+            <PermissionGuard permission={Permission.EXPORT_DATA}>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold shadow-lg transition-colors backdrop-blur-sm"
+              >
+                <Download className="h-5 w-5" />
+                Export CSV
+              </button>
+            </PermissionGuard>
             <a
               href="/events/create"
               className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold shadow-lg transition-colors"

@@ -12,7 +12,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import RoleBadge from '@/components/RoleBadge'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { Search, Trash2, UserX, UserCheck, Shield } from 'lucide-react'
+import { Search, Trash2, UserX, UserCheck, Shield, Download } from 'lucide-react'
 
 interface User {
   id: string
@@ -187,6 +187,32 @@ export default function UsersPage() {
     }
   }
 
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (debouncedSearch) params.append('search', debouncedSearch)
+      if (selectedRole) params.append('role', selectedRole)
+      
+      const url = `/admin/users/export/all${params.toString() ? '?' + params.toString() : ''}`
+      const response = await api.get(url, { responseType: 'blob' })
+      
+      const blob = new Blob([response.data], { type: 'text/csv' })
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      showSuccess('Export Successful', 'Users data has been exported successfully')
+    } catch (error: any) {
+      console.error('Error exporting users:', error)
+      showError('Export Failed', error.response?.data?.message || 'Failed to export users data')
+    }
+  }
+
   const handleDelete = async (userId: string) => {
     const confirmed = await showConfirm(
       'Delete User',
@@ -205,6 +231,32 @@ export default function UsersPage() {
     } catch (error: any) {
       console.error('Error deleting user:', error)
       showError('Failed to Delete User', error.response?.data?.message || 'An error occurred while deleting the user')
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (debouncedSearch) params.append('search', debouncedSearch)
+      if (selectedRole) params.append('role', selectedRole)
+      
+      const url = `/admin/users/export/all${params.toString() ? '?' + params.toString() : ''}`
+      const response = await api.get(url, { responseType: 'blob' })
+      
+      const blob = new Blob([response.data], { type: 'text/csv' })
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      showSuccess('Export Successful', 'Users data has been exported successfully')
+    } catch (error: any) {
+      console.error('Error exporting users:', error)
+      showError('Export Failed', error.response?.data?.message || 'Failed to export users data')
     }
   }
 
@@ -231,14 +283,25 @@ export default function UsersPage() {
                 Manage all users in the system
               </p>
             </div>
-            <PermissionGuard permission={Permission.VIEW_USERS}>
-              <button
-                onClick={() => router.push('/users/new')}
-                className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-lg"
-              >
-                + Create User
-              </button>
-            </PermissionGuard>
+            <div className="flex items-center gap-3">
+              <PermissionGuard permission={Permission.EXPORT_DATA}>
+                <button
+                  onClick={handleExport}
+                  className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm flex items-center gap-2 font-medium text-white"
+                >
+                  <Download className="h-5 w-5" />
+                  Export CSV
+                </button>
+              </PermissionGuard>
+              <PermissionGuard permission={Permission.VIEW_USERS}>
+                <button
+                  onClick={() => router.push('/users/new')}
+                  className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-lg"
+                >
+                  + Create User
+                </button>
+              </PermissionGuard>
+            </div>
           </div>
         </div>
 

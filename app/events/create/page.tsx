@@ -7,7 +7,7 @@ import { useSweetAlert } from '@/hooks/useSweetAlert'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Upload, Image as ImageIcon } from 'lucide-react'
 
 const EVENT_TYPES = ['WORKSHOP', 'MEETUP', 'CONFERENCE', 'WEBINAR', 'CHALLENGE', 'OTHER']
 const EVENT_STATUSES = ['UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED']
@@ -21,6 +21,8 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
   const [clubName, setClubName] = useState<string>('')
   const [clubs, setClubs] = useState<Array<{ id: string; name: string }>>([])
   const [loadingClubs, setLoadingClubs] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -83,6 +85,60 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
       }
     }
   }, [searchParams])
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      setUploadingImage(true)
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await api.post('/upload/image', uploadFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      const uploadedImageUrl = response.data.url
+      setFormData(prevFormData => ({
+        ...prevFormData,
+        image: uploadedImageUrl,
+      }))
+      showSuccess('Image uploaded successfully')
+    } catch (error: any) {
+      console.error('Error uploading image:', error)
+      showError('Upload Failed', error.response?.data?.message || 'Failed to upload image')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      setUploadingBanner(true)
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await api.post('/upload/image', uploadFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      const uploadedBannerUrl = response.data.url
+      setFormData(prevFormData => ({
+        ...prevFormData,
+        banner: uploadedBannerUrl,
+      }))
+      showSuccess('Banner uploaded successfully')
+    } catch (error: any) {
+      console.error('Error uploading banner:', error)
+      showError('Upload Failed', error.response?.data?.message || 'Failed to upload banner')
+    } finally {
+      setUploadingBanner(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -274,27 +330,115 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Event Image URL (Square/Thumbnail)
+                  Event Image (Square/Thumbnail)
                 </label>
-                <input
-                  type="url"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="https://..."
-                />
+                <div className="space-y-2">
+                  {formData.image ? (
+                    <div className="relative">
+                      <img
+                        src={formData.image}
+                        alt="Event thumbnail"
+                        className="w-full h-32 rounded-lg object-cover border-2 border-gray-200 dark:border-gray-700"
+                      />
+                      <label className="absolute bottom-2 right-2 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg">
+                        <Upload className="h-4 w-4" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          disabled={uploadingImage}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer block">
+                      <div className="w-full h-32 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex flex-col items-center justify-center text-white hover:from-blue-600 hover:to-purple-700 transition-colors border-2 border-dashed border-gray-300 dark:border-gray-600">
+                        {uploadingImage ? (
+                          <div className="text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                            <span className="text-xs">Uploading...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <ImageIcon className="h-8 w-8 mb-2" />
+                            <span className="text-xs text-center px-2">Upload Image</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          disabled={uploadingImage}
+                        />
+                      </div>
+                    </label>
+                  )}
+                  <input
+                    type="url"
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    placeholder="Or enter image URL"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Event Banner URL (Wide Banner)
+                  Event Banner (Wide Banner) *
                 </label>
-                <input
-                  type="url"
-                  value={formData.banner}
-                  onChange={(e) => setFormData({ ...formData, banner: e.target.value })}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="https://..."
-                />
+                <div className="space-y-2">
+                  {formData.banner ? (
+                    <div className="relative">
+                      <img
+                        src={formData.banner}
+                        alt="Event banner"
+                        className="w-full h-32 rounded-lg object-cover border-2 border-gray-200 dark:border-gray-700"
+                      />
+                      <label className="absolute bottom-2 right-2 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg">
+                        <Upload className="h-4 w-4" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerUpload}
+                          className="hidden"
+                          disabled={uploadingBanner}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer block">
+                      <div className="w-full h-32 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex flex-col items-center justify-center text-white hover:from-purple-600 hover:to-pink-700 transition-colors border-2 border-dashed border-gray-300 dark:border-gray-600">
+                        {uploadingBanner ? (
+                          <div className="text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                            <span className="text-xs">Uploading...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <ImageIcon className="h-8 w-8 mb-2" />
+                            <span className="text-xs text-center px-2">Upload Banner</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerUpload}
+                          className="hidden"
+                          disabled={uploadingBanner}
+                        />
+                      </div>
+                    </label>
+                  )}
+                  <input
+                    type="url"
+                    value={formData.banner}
+                    onChange={(e) => setFormData({ ...formData, banner: e.target.value })}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    placeholder="Or enter banner URL"
+                  />
+                </div>
               </div>
             </div>
 

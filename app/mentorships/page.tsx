@@ -5,8 +5,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { Search, Eye, Users, Clock, Calendar } from 'lucide-react'
-import { format } from 'date-fns'
+import { Search, Eye, Users, Clock, Calendar, TrendingUp, CheckCircle, XCircle, Activity, BarChart3, Filter, Download, Plus } from 'lucide-react'
+import { format as formatDate } from 'date-fns'
+import Link from 'next/link'
 
 interface Mentorship {
   id: string
@@ -31,20 +32,43 @@ interface Mentorship {
   }
 }
 
+interface MentorshipStats {
+  total: number
+  active: number
+  pending: number
+  completed: number
+  cancelled: number
+  totalSessions: number
+  avgEngagement: number
+  recent: number
+}
+
 export default function MentorshipsPage() {
   const { user } = useAuth()
   const [mentorships, setMentorships] = useState<Mentorship[]>([])
+  const [stats, setStats] = useState<MentorshipStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   useEffect(() => {
     if (user) {
       fetchMentorships()
+      fetchStats()
     }
   }, [user, page, statusFilter])
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/admin/mentorships/stats')
+      setStats(response.data)
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
 
   const fetchMentorships = async () => {
     try {
@@ -70,7 +94,7 @@ export default function MentorshipsPage() {
       }
 
       setMentorships(filteredMentorships)
-      setTotalPages(response.data.pagination.totalPages)
+      setTotalPages(response.data.pagination?.totalPages || 1)
     } catch (error) {
       console.error('Error fetching mentorships:', error)
     } finally {
@@ -83,7 +107,7 @@ export default function MentorshipsPage() {
       <ProtectedRoute>
         <Layout>
           <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading...</div>
+            <div className="text-gray-500 dark:text-gray-400">Loading mentorships...</div>
           </div>
         </Layout>
       </ProtectedRoute>
@@ -94,15 +118,135 @@ export default function MentorshipsPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Mentorships</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Manage all mentorship sessions
-            </p>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Mentorships</h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Manage all mentorship programs and sessions
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                {viewMode === 'grid' ? 'List View' : 'Grid View'}
+              </button>
+              <Link
+                href="/mentorships/cycles"
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Manage Cycles
+              </Link>
+            </div>
           </div>
 
+          {/* Stats Dashboard */}
+          {stats && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-200 dark:bg-blue-900 px-2 py-1 rounded-full">
+                    Total
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 font-medium mb-1">All Mentorships</p>
+                  <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{stats.total}</p>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-6 border border-green-200 dark:border-green-800 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <Activity className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  <span className="text-xs font-semibold text-green-600 dark:text-green-400 bg-green-200 dark:bg-green-900 px-2 py-1 rounded-full">
+                    Active
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-green-700 dark:text-green-300 font-medium mb-1">Active Programs</p>
+                  <p className="text-3xl font-bold text-green-900 dark:text-green-100">{stats.active}</p>
+                  {stats.total > 0 && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                      {((stats.active / stats.total) * 100).toFixed(0)}% of total
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-xl p-6 border border-yellow-200 dark:border-yellow-800 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <Clock className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+                  <span className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 bg-yellow-200 dark:bg-yellow-900 px-2 py-1 rounded-full">
+                    Pending
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium mb-1">Pending Approval</p>
+                  <p className="text-3xl font-bold text-yellow-900 dark:text-yellow-100">{stats.pending}</p>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <CheckCircle className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-200 dark:bg-purple-900 px-2 py-1 rounded-full">
+                    Completed
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-purple-700 dark:text-purple-300 font-medium mb-1">Completed</p>
+                  <p className="text-3xl font-bold text-purple-900 dark:text-purple-100">{stats.completed}</p>
+                  {stats.totalSessions > 0 && (
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                      {stats.totalSessions} total sessions
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Secondary Stats */}
+          {stats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow">
+                <div className="flex items-center gap-3">
+                  <BarChart3 className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Avg Engagement</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      {stats.avgEngagement ? `${stats.avgEngagement.toFixed(0)}%` : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Recent (7 days)</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.recent}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow">
+                <div className="flex items-center gap-3">
+                  <XCircle className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Cancelled</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.cancelled}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Enhanced Filters */}
-          <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-6">
+          <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
@@ -117,25 +261,29 @@ export default function MentorshipsPage() {
                   className="pl-10 pr-4 py-2.5 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value)
-                  setPage(1)
-                }}
-                className="sm:w-48 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="ACTIVE">Active</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="sm:w-48 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Enhanced Mentorships Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Enhanced Mentorships Grid/List */}
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {mentorships.map((mentorship) => (
               <div
                 key={mentorship.id}
@@ -205,7 +353,7 @@ export default function MentorshipsPage() {
                     </div>
                     <p className="text-xs font-medium text-gray-900 dark:text-white">
                       {mentorship.nextSessionDate
-                        ? format(new Date(mentorship.nextSessionDate), 'MMM dd')
+                        ? formatDate(new Date(mentorship.nextSessionDate), 'MMM dd')
                         : '—'}
                     </p>
                   </div>
@@ -215,7 +363,7 @@ export default function MentorshipsPage() {
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {format(new Date(mentorship.createdAt), 'MMM dd, yyyy')}
+                      {formatDate(new Date(mentorship.createdAt), 'MMM dd, yyyy')}
                     </p>
                     <Eye className="h-4 w-4 text-primary-600 dark:text-primary-400" />
                   </div>
@@ -223,12 +371,101 @@ export default function MentorshipsPage() {
               </div>
             ))}
           </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mentor</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mentee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sessions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Next Session</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {mentorships.map((mentorship) => (
+                      <tr key={mentorship.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {mentorship.mentor.firstName} {mentorship.mentor.lastName}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{mentorship.mentor.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {mentorship.mentee.firstName} {mentorship.mentee.lastName}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{mentorship.mentee.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                              mentorship.status === 'ACTIVE'
+                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                : mentorship.status === 'PENDING'
+                                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                                : mentorship.status === 'COMPLETED'
+                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                                : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                            }`}
+                          >
+                            {mentorship.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                            <span className="text-sm text-gray-900 dark:text-white">{mentorship.sessionsCompleted || 0}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {mentorship.nextSessionDate
+                            ? formatDate(new Date(mentorship.nextSessionDate), 'MMM dd, yyyy')
+                            : '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {formatDate(new Date(mentorship.createdAt), 'MMM dd, yyyy')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <Link
+                            href={`/mentorships/${mentorship.id}`}
+                            className="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300 flex items-center gap-2"
+                          >
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Empty State */}
-          {mentorships.length === 0 && (
+          {mentorships.length === 0 && !loading && (
             <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-12 border border-gray-200 dark:border-gray-700 text-center">
               <Users className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">No mentorships found</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No mentorships found</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">
+                {search || statusFilter
+                  ? 'Try adjusting your search or filter criteria'
+                  : 'No mentorship programs have been created yet'}
+              </p>
+              {!search && !statusFilter && (
+                <Link
+                  href="/mentorships/cycles"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Mentorship Cycle
+                </Link>
+              )}
             </div>
           )}
 

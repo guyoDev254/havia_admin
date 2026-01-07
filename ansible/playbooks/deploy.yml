@@ -1,0 +1,96 @@
+---
+- name: Deploy Havia Admin Panel
+  hosts: admin_server
+  become: yes
+  vars:
+    image_tag: "{{ image_tag | default('latest') }}"
+    docker_registry: "{{ docker_registry | default('docker.io') }}"
+    docker_image: "{{ docker_image_admin | default('guyo254/admin') }}"
+    full_image: "{{ docker_registry }}/{{ docker_image }}:{{ image_tag }}"
+    container_name: "{{ admin_container_name | default('havia-admin') }}"
+    docker_network: "{{ docker_network | default('havia-network') }}"
+    restart_policy: "{{ admin_restart_policy | default('always') }}"
+    admin_port: "{{ admin_port | default('3001') }}"
+    api_url: "{{ api_url | default('http://localhost:6000') }}"
+  
+  tasks:
+    - name: Ensure Docker is installed
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Ensure Docker network exists
+      docker_network:
+        name: "{{ docker_network }}"
+        state: present
+
+    - name: Login to Docker registry
+      docker_login:
+        username: "{{ docker_username }}"
+        password: "{{ docker_password }}"
+        registry_url: "{{ docker_registry }}"
+      when: docker_username is defined and docker_password is defined
+      no_log: true
+
+    - name: Pull latest Docker image
+      docker_image:
+        name: "{{ full_image }}"
+        source: pull
+        force_source: yes
+
+    - name: Stop existing container
+      docker_container:
+        name: "{{ container_name }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Deploy Admin container
+      docker_container:
+        name: "{{ container_name }}"
+        image: "{{ full_image }}"
+        state: started
+        restart_policy: "{{ restart_policy }}"
+        networks:
+          - name: "{{ docker_network }}"
+        ports:
+          - "{{ admin_port }}:3000"
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: "{{ api_url }}"
+          PORT: "3000"
+          HOSTNAME: "0.0.0.0"
+
+    - name: Wait for Admin to be ready
+      uri:
+        url: "http://localhost:{{ admin_port }}"
+        status_code: [200, 302, 301]
+      register: result
+      until: result.status in [200, 302, 301]
+      retries: 10
+      delay: 5
+      ignore_errors: yes
+
+    - name: Clean up old Docker images
+      shell: |
+        docker image prune -af --filter "until=168h" --filter "label!=keep"
+      ignore_errors: yes
+
+    - name: Display deployment info
+      debug:
+        msg:
+          - "Admin Panel deployed successfully!"
+          - "Image: {{ full_image }}"
+          - "Container: {{ container_name }}"
+          - "Port: {{ admin_port }}"
+          - "API URL: {{ api_url }}"
+

@@ -6,8 +6,8 @@ import { usePermissions, Permission } from '@/hooks/usePermissions'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { Plus, Calendar, Users } from 'lucide-react'
-import { format } from 'date-fns'
+import { Plus, Calendar, Users, TrendingUp, CheckCircle, Clock, Activity, BarChart3, Filter, Search } from 'lucide-react'
+import { format as formatDate } from 'date-fns'
 import Link from 'next/link'
 
 interface MentorshipCycle {
@@ -30,12 +30,24 @@ interface MentorshipCycle {
   }
 }
 
+interface CycleStats {
+  total: number
+  active: number
+  upcoming: number
+  completed: number
+  totalMentorships: number
+  totalPrograms: number
+}
+
 export default function CyclesPage() {
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
   const [cycles, setCycles] = useState<MentorshipCycle[]>([])
+  const [stats, setStats] = useState<CycleStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -52,8 +64,18 @@ export default function CyclesPage() {
   useEffect(() => {
     if (user) {
       fetchCycles()
+      fetchStats()
     }
   }, [user])
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/admin/mentorship/cycles/stats')
+      setStats(response.data)
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
 
   const fetchCycles = async () => {
     try {
@@ -66,6 +88,19 @@ export default function CyclesPage() {
       setLoading(false)
     }
   }
+
+  const filteredCycles = cycles.filter((cycle) => {
+    const matchesSearch =
+      !search ||
+      cycle.name.toLowerCase().includes(search.toLowerCase()) ||
+      cycle.description?.toLowerCase().includes(search.toLowerCase())
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      cycle.status.toLowerCase() === statusFilter.toLowerCase()
+
+    return matchesSearch && matchesStatus
+  })
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,17 +145,18 @@ export default function CyclesPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
+          {/* Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Mentorship Cycles</h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Manage 8-week mentorship cycles
+                Manage 8-week mentorship cycles and programs
               </p>
             </div>
             {hasPermission(Permission.MANAGE_MENTORSHIP) && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 Create Cycle
@@ -128,8 +164,79 @@ export default function CyclesPage() {
             )}
           </div>
 
+          {/* Stats Dashboard */}
+          {stats && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800 shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">Total Cycles</p>
+                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.total}</p>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 border border-green-200 dark:border-green-800 shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+                <p className="text-xs text-green-700 dark:text-green-300 font-medium mb-1">Active</p>
+                <p className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.active}</p>
+              </div>
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-xl p-4 border border-yellow-200 dark:border-yellow-800 shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium mb-1">Upcoming</p>
+                <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{stats.upcoming}</p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800 shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <CheckCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <p className="text-xs text-purple-700 dark:text-purple-300 font-medium mb-1">Completed</p>
+                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">{stats.completed}</p>
+              </div>
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800 shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium mb-1">Total Mentorships</p>
+                <p className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{stats.totalMentorships}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search cycles by name or description..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="sm:w-48 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Cycles Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cycles.map((cycle) => (
+            {filteredCycles.map((cycle) => (
               <Link
                 key={cycle.id}
                 href={`/mentorships/cycles/${cycle.id}`}
@@ -157,8 +264,8 @@ export default function CyclesPage() {
                   <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      {format(new Date(cycle.startDate), 'MMM dd')} -{' '}
-                      {format(new Date(cycle.endDate), 'MMM dd, yyyy')}
+                      {formatDate(new Date(cycle.startDate), 'MMM dd')} -{' '}
+                      {formatDate(new Date(cycle.endDate), 'MMM dd, yyyy')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
@@ -171,6 +278,28 @@ export default function CyclesPage() {
               </Link>
             ))}
           </div>
+
+          {/* Empty State */}
+          {filteredCycles.length === 0 && !loading && (
+            <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-12 border border-gray-200 dark:border-gray-700 text-center">
+              <Calendar className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No cycles found</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">
+                {search || statusFilter !== 'all'
+                  ? 'Try adjusting your search or filter criteria'
+                  : 'No mentorship cycles have been created yet'}
+              </p>
+              {hasPermission(Permission.MANAGE_MENTORSHIP) && !search && statusFilter === 'all' && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create First Cycle
+                </button>
+              )}
+            </div>
+          )}
 
           {showCreateModal && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

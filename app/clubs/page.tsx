@@ -10,7 +10,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
-import { Trash2, Plus, Search, CheckCircle, XCircle, Clock, Users, Calendar } from 'lucide-react'
+import { Trash2, Plus, Search, CheckCircle, XCircle, Clock, Users, Calendar, Download } from 'lucide-react'
 import Link from 'next/link'
 
 interface Club {
@@ -168,6 +168,31 @@ export default function ClubsPage() {
     }
   }
 
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter) params.append('status', statusFilter)
+      
+      const url = `/admin/clubs/export${params.toString() ? '?' + params.toString() : ''}`
+      const response = await api.get(url, { responseType: 'blob' })
+      
+      const blob = new Blob([response.data], { type: 'text/csv' })
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `clubs-export-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      showSuccess('Export Successful', 'Clubs data has been exported successfully')
+    } catch (error: any) {
+      console.error('Error exporting clubs:', error)
+      showError('Export Failed', error.response?.data?.message || 'Failed to export clubs data')
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -190,6 +215,15 @@ export default function ClubsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <PermissionGuard permission={Permission.EXPORT_DATA}>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </button>
+            </PermissionGuard>
             <PermissionGuard permission={Permission.APPROVE_CLUBS}>
               <Link
                 href="/clubs/applications"
