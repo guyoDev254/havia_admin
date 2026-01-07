@@ -234,32 +234,6 @@ export default function UsersPage() {
     }
   }
 
-  const handleExport = async () => {
-    try {
-      const params = new URLSearchParams()
-      if (debouncedSearch) params.append('search', debouncedSearch)
-      if (selectedRole) params.append('role', selectedRole)
-      
-      const url = `/admin/users/export/all${params.toString() ? '?' + params.toString() : ''}`
-      const response = await api.get(url, { responseType: 'blob' })
-      
-      const blob = new Blob([response.data], { type: 'text/csv' })
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
-      
-      showSuccess('Export Successful', 'Users data has been exported successfully')
-    } catch (error: any) {
-      console.error('Error exporting users:', error)
-      showError('Export Failed', error.response?.data?.message || 'Failed to export users data')
-    }
-  }
-
   if (loading) {
     return (
       <ProtectedRoute>
