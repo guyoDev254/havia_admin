@@ -21,6 +21,7 @@ interface Scholarship {
   category?: string
   level?: string
   isActive: boolean
+  visibility?: string
   _count: {
     applications: number
   }
@@ -177,6 +178,9 @@ export default function ScholarshipsPage() {
                           Applications
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Visibility
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Status
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -211,6 +215,11 @@ export default function ScholarshipsPage() {
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
                             {scholarship._count?.applications || 0}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 py-1 text-xs rounded bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200">
+                              {(scholarship.visibility ?? 'both') === 'both' ? 'Web & Mobile' : 'Web only'}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {scholarship.isActive ? (

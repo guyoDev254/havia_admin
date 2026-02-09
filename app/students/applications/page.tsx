@@ -10,6 +10,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import { FileText, Search, Filter, Eye, CheckCircle, XCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
+import StatusUpdateModal from '@/components/StatusUpdateModal'
 
 interface Application {
   id: string
@@ -41,6 +42,11 @@ export default function ApplicationsPage() {
   const [scholarshipFilter, setScholarshipFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [statusModal, setStatusModal] = useState<{ open: boolean; id: string | null; status: 'APPROVED' | 'REJECTED' | null }>({
+    open: false,
+    id: null,
+    status: null,
+  })
 
   useEffect(() => {
     if (user) {
@@ -69,9 +75,18 @@ export default function ApplicationsPage() {
     }
   }
 
-  const handleStatusUpdate = async (id: string, status: string) => {
+  const handleStatusUpdate = async (
+    id: string,
+    status: string,
+    reason?: string,
+    nextInstructions?: string,
+  ) => {
     try {
-      await api.put(`/admin/scholarships/applications/${id}/status`, { status })
+      await api.put(`/admin/scholarships/applications/${id}/status`, {
+        status,
+        ...(reason && { reason }),
+        ...(nextInstructions && { nextInstructions }),
+      })
       fetchApplications()
     } catch (error) {
       console.error('Error updating status:', error)
@@ -250,7 +265,9 @@ export default function ApplicationsPage() {
                               </Link>
                               {application.status !== 'APPROVED' && (
                                 <button
-                                  onClick={() => handleStatusUpdate(application.id, 'APPROVED')}
+                                  onClick={() =>
+                                    setStatusModal({ open: true, id: application.id, status: 'APPROVED' })
+                                  }
                                   className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
                                   title="Approve"
                                 >
@@ -259,7 +276,9 @@ export default function ApplicationsPage() {
                               )}
                               {application.status !== 'REJECTED' && (
                                 <button
-                                  onClick={() => handleStatusUpdate(application.id, 'REJECTED')}
+                                  onClick={() =>
+                                    setStatusModal({ open: true, id: application.id, status: 'REJECTED' })
+                                  }
                                   className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                                   title="Reject"
                                 >
@@ -299,6 +318,13 @@ export default function ApplicationsPage() {
               )}
             </div>
           </div>
+        <StatusUpdateModal
+          isOpen={statusModal.open}
+          onClose={() => setStatusModal({ open: false, id: null, status: null })}
+          applicationId={statusModal.id}
+          status={statusModal.status}
+          onConfirm={handleStatusUpdate}
+        />
         </Layout>
       </PermissionGuard>
     </ProtectedRoute>

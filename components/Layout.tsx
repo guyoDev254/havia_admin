@@ -77,6 +77,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Students', href: '/students', icon: GraduationCap, permission: Permission.VIEW_USERS },
       { name: 'Applications', href: '/students/applications', icon: FileText, permission: Permission.VIEW_USERS },
+      { name: 'DataCamp Applications', href: '/students/datacamp-applications', icon: FileText, permission: Permission.VIEW_ANALYTICS },
       { name: 'Analytics', href: '/students/analytics', icon: BarChart3, permission: Permission.VIEW_ANALYTICS },
       { name: 'Scholarships', href: '/students/scholarships', icon: Trophy, permission: Permission.CREATE_CONTENT },
       { name: 'Study Groups', href: '/students/study-groups', icon: Users2, permission: Permission.VIEW_ANALYTICS },

@@ -1,18 +1,21 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { Trophy, ArrowLeft, Plus, X } from 'lucide-react'
+import { Trophy, ArrowLeft, X } from 'lucide-react'
 import Link from 'next/link'
 
-export default function NewScholarshipPage() {
+export default function EditScholarshipPage() {
   const router = useRouter()
+  const params = useParams()
+  const id = params?.id as string
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,6 +33,37 @@ export default function NewScholarshipPage() {
   const [newEligibility, setNewEligibility] = useState('')
   const [newRequirement, setNewRequirement] = useState('')
 
+  useEffect(() => {
+    if (!id || !user) return
+    const fetchScholarship = async () => {
+      try {
+        const res = await api.get(`/admin/scholarships/${id}`)
+        const s = res.data
+        setFormData({
+          title: s.title ?? '',
+          description: s.description ?? '',
+          provider: s.provider ?? '',
+          amount: s.amount ?? '',
+          eligibility: Array.isArray(s.eligibility) ? s.eligibility : [],
+          requirements: Array.isArray(s.requirements) ? s.requirements : [],
+          deadline: s.deadline ? new Date(s.deadline).toISOString().slice(0, 10) : '',
+          applicationUrl: s.applicationUrl ?? '',
+          category: s.category ?? '',
+          level: s.level ?? 'UNIVERSITY',
+          isActive: s.isActive ?? true,
+          visibility: (s.visibility === 'web' ? 'web' : 'both') as 'web' | 'both',
+        })
+      } catch (e) {
+        console.error(e)
+        alert('Failed to load scholarship')
+        router.push('/students/scholarships')
+      } finally {
+        setFetching(false)
+      }
+    }
+    fetchScholarship()
+  }, [id, user, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.title || !formData.description || !formData.provider || !formData.deadline) {
@@ -39,7 +73,7 @@ export default function NewScholarshipPage() {
 
     try {
       setLoading(true)
-      await api.post('/admin/scholarships', {
+      await api.put(`/admin/scholarships/${id}`, {
         ...formData,
         deadline: new Date(formData.deadline).toISOString(),
         eligibility: formData.eligibility,
@@ -48,8 +82,8 @@ export default function NewScholarshipPage() {
       })
       router.push('/students/scholarships')
     } catch (error: any) {
-      console.error('Error creating scholarship:', error)
-      alert(error.response?.data?.message || 'Failed to create scholarship')
+      console.error('Error updating scholarship:', error)
+      alert(error.response?.data?.message || 'Failed to update scholarship')
     } finally {
       setLoading(false)
     }
@@ -89,6 +123,16 @@ export default function NewScholarshipPage() {
     })
   }
 
+  if (fetching) {
+    return (
+      <ProtectedRoute>
+        <Layout>
+          <div className="p-6">Loading...</div>
+        </Layout>
+      </ProtectedRoute>
+    )
+  }
+
   return (
     <ProtectedRoute>
       <Layout>
@@ -103,16 +147,14 @@ export default function NewScholarshipPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Trophy className="h-8 w-8" />
-                Create Scholarship
+                Edit Scholarship
               </h1>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Title *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title *</label>
               <input
                 type="text"
                 value={formData.title}
@@ -123,9 +165,7 @@ export default function NewScholarshipPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Provider *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Provider *</label>
               <input
                 type="text"
                 value={formData.provider}
@@ -136,9 +176,7 @@ export default function NewScholarshipPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Description *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description *</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -150,9 +188,7 @@ export default function NewScholarshipPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Amount
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amount</label>
                 <input
                   type="text"
                   value={formData.amount}
@@ -161,11 +197,8 @@ export default function NewScholarshipPage() {
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Deadline *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Deadline *</label>
                 <input
                   type="date"
                   value={formData.deadline}
@@ -178,9 +211,7 @@ export default function NewScholarshipPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Level
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Level</label>
                 <select
                   value={formData.level}
                   onChange={(e) => setFormData({ ...formData, level: e.target.value })}
@@ -192,11 +223,8 @@ export default function NewScholarshipPage() {
                   <option value="OUT_OF_SCHOOL">Out of school</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Category
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
                 <input
                   type="text"
                   value={formData.category}
@@ -208,9 +236,7 @@ export default function NewScholarshipPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Application URL
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Application URL</label>
               <input
                 type="url"
                 value={formData.applicationUrl}
@@ -221,9 +247,7 @@ export default function NewScholarshipPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Eligibility Criteria
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Eligibility Criteria</label>
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
@@ -233,26 +257,15 @@ export default function NewScholarshipPage() {
                   placeholder="Add eligibility criteria"
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
-                <button
-                  type="button"
-                  onClick={addEligibility}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="h-5 w-5" />
+                <button type="button" onClick={addEligibility} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  Add
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {formData.eligibility.map((item, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-sm flex items-center gap-2"
-                  >
+                  <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-sm flex items-center gap-2">
                     {item}
-                    <button
-                      type="button"
-                      onClick={() => removeEligibility(index)}
-                      className="hover:text-blue-600"
-                    >
+                    <button type="button" onClick={() => removeEligibility(index)} className="hover:text-blue-600">
                       <X className="h-4 w-4" />
                     </button>
                   </span>
@@ -261,9 +274,7 @@ export default function NewScholarshipPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Application Requirements
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Application Requirements</label>
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
@@ -273,26 +284,15 @@ export default function NewScholarshipPage() {
                   placeholder="Add requirement"
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
-                <button
-                  type="button"
-                  onClick={addRequirement}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="h-5 w-5" />
+                <button type="button" onClick={addRequirement} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  Add
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {formData.requirements.map((item, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-sm flex items-center gap-2"
-                  >
+                  <span key={index} className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-sm flex items-center gap-2">
                     {item}
-                    <button
-                      type="button"
-                      onClick={() => removeRequirement(index)}
-                      className="hover:text-green-600"
-                    >
+                    <button type="button" onClick={() => removeRequirement(index)} className="hover:text-green-600">
                       <X className="h-4 w-4" />
                     </button>
                   </span>
@@ -301,9 +301,7 @@ export default function NewScholarshipPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Show on
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Show on</label>
               <select
                 value={formData.visibility}
                 onChange={(e) => setFormData({ ...formData, visibility: e.target.value as 'web' | 'both' })}
@@ -328,17 +326,10 @@ export default function NewScholarshipPage() {
             </div>
 
             <div className="flex gap-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? 'Creating...' : 'Create Scholarship'}
+              <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {loading ? 'Saving...' : 'Save changes'}
               </button>
-              <Link
-                href="/students/scholarships"
-                className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
+              <Link href="/students/scholarships" className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                 Cancel
               </Link>
             </div>
@@ -348,4 +339,3 @@ export default function NewScholarshipPage() {
     </ProtectedRoute>
   )
 }
-
