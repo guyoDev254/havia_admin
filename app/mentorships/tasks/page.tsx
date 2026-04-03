@@ -268,7 +268,8 @@ export default function TasksPage() {
         task.mentorship.cycle?.name || '',
       ])
       
-      const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+      const allRows: (string | number)[][] = [headers, ...rows]
+      const csv = allRows.map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n')
       const blob = new Blob([csv], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
