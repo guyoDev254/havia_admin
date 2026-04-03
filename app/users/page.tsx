@@ -522,9 +522,7 @@ export default function UsersPage() {
                           ))}
                         </select>
                       </PermissionGuard>
-                      <PermissionGuard permission={Permission.ASSIGN_ROLES} fallback={<RoleBadge role={user.role} size="sm" />}>
-                        <RoleBadge role={user.role} size="sm" />
-                      </PermissionGuard>
+                      
                     </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
