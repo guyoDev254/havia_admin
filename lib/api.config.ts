@@ -7,13 +7,14 @@
  * - Create .env.local file with: NEXT_PUBLIC_API_URL=http://localhost:8000
  * 
  * Production:
- * - Create .env.local file with: NEXT_PUBLIC_API_URL=https://api.northernbox.co.ke
+ * - Create .env.local file with: NEXT_PUBLIC_API_URL=https://api.northernbox.org
  * - Or leave unset to use default production URL
  */
 
 export const API_URLS = {
   DEVELOPMENT: 'http://localhost:8000',
-  PRODUCTION: 'https://api.northernbox.co.ke',
+  /** Primary production API (DNS + SSL must point here). Legacy .co.ke removed from default — set NEXT_PUBLIC_API_URL if you still use it. */
+  PRODUCTION: 'https://api.northernbox.org',
 } as const;
 
 export const getApiUrl = (): string => {
@@ -27,7 +28,11 @@ export const getApiUrl = (): string => {
     const hostname = window.location.hostname;
     
     // If on production admin domain, use production API
-    if (hostname === 'admin.northern.co.ke' || hostname === 'admin.northernbox.co.ke') {
+    if (
+      hostname === 'admin.northernbox.org' ||
+      hostname === 'admin.northern.co.ke' ||
+      hostname === 'admin.northernbox.co.ke'
+    ) {
       return API_URLS.PRODUCTION;
     }
     
