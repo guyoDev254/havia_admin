@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import MentorshipSubNav from '@/components/MentorshipSubNav'
 import { Search, Eye, User, BookOpen, Target, Filter, Users, Activity, CheckCircle, XCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -110,6 +111,7 @@ export default function MenteesPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
+          <MentorshipSubNav breadcrumbs={[{ label: 'Mentees' }]} />
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>

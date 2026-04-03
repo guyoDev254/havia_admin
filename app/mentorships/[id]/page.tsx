@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import MentorshipSubNav from '@/components/MentorshipSubNav'
 import { ArrowLeft, Edit2, Save, X, Calendar, CheckCircle, Clock, FileText, TrendingUp, User, Users, Target, Award, Activity, MessageSquare, BarChart3, Percent } from 'lucide-react'
 import { format } from 'date-fns'
 import Link from 'next/link'
@@ -231,6 +232,7 @@ export default function MentorshipDetailPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
+          <MentorshipSubNav breadcrumbs={[{ label: 'All', href: '/mentorships' }, { label: mentorship ? `${mentorship.mentor?.firstName} ${mentorship.mentor?.lastName} – ${mentorship.mentee?.firstName} ${mentorship.mentee?.lastName}` : 'Detail' }]} />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button

@@ -6,6 +6,7 @@ import { usePermissions, Permission } from '@/hooks/usePermissions'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import MentorshipSubNav from '@/components/MentorshipSubNav'
 import { Plus, Calendar, Users, TrendingUp, CheckCircle, Clock, Activity, BarChart3, Filter, Search } from 'lucide-react'
 import { format as formatDate } from 'date-fns'
 import Link from 'next/link'
@@ -18,16 +19,22 @@ interface MentorshipCycle {
   expectedOutcomes?: string
   requirements?: string
   targetGroup?: string
+  targetGroupEnum?: string
   conditions?: string
   startDate: string
   endDate: string
   status: string
   maxMentorships?: number
+  maxCohortSize?: number
+  totalWeeks?: number
   createdAt: string
   _count: {
     programs: number
     mentorships: number
+    applications?: number
+    alumni?: number
   }
+  phases?: { id: string; phaseOrder: number; name: string; startWeek: number; endWeek: number }[]
 }
 
 interface CycleStats {
@@ -48,6 +55,15 @@ export default function CyclesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const TARGET_GROUP_OPTIONS = [
+    { value: '', label: '— Select target group —' },
+    { value: 'STUDENTS', label: 'Students' },
+    { value: 'JUNIOR_DEVELOPERS', label: 'Junior developers' },
+    { value: 'NGO_STAFF', label: 'NGO staff' },
+    { value: 'COMMUNITY_LEADERS', label: 'Community leaders' },
+    { value: 'OTHER', label: 'Other' },
+  ]
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -55,10 +71,13 @@ export default function CyclesPage() {
     expectedOutcomes: '',
     requirements: '',
     targetGroup: '',
+    targetGroupEnum: '',
     conditions: '',
     startDate: '',
     endDate: '',
     maxMentorships: '',
+    maxCohortSize: '20',
+    totalWeeks: '12',
   })
 
   useEffect(() => {
@@ -108,6 +127,9 @@ export default function CyclesPage() {
       await api.post('/admin/mentorship/cycles', {
         ...formData,
         maxMentorships: formData.maxMentorships ? parseInt(formData.maxMentorships) : undefined,
+        maxCohortSize: formData.maxCohortSize ? parseInt(formData.maxCohortSize) : 20,
+        totalWeeks: formData.totalWeeks ? parseInt(formData.totalWeeks) : 12,
+        targetGroupEnum: formData.targetGroupEnum || undefined,
       })
       setShowCreateModal(false)
       setFormData({
@@ -117,10 +139,13 @@ export default function CyclesPage() {
         expectedOutcomes: '',
         requirements: '',
         targetGroup: '',
+        targetGroupEnum: '',
         conditions: '',
         startDate: '',
         endDate: '',
         maxMentorships: '',
+        maxCohortSize: '20',
+        totalWeeks: '12',
       })
       fetchCycles()
     } catch (error) {
@@ -145,12 +170,13 @@ export default function CyclesPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
+          <MentorshipSubNav breadcrumbs={[{ label: 'Cycles', href: '/mentorships/cycles' }]} />
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Mentorship Cycles</h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Manage 8-week mentorship cycles and programs
+                Structured cohorts: create cycle, screen applications, assign, track attendance
               </p>
             </div>
             {hasPermission(Permission.MANAGE_MENTORSHIP) && (
@@ -334,7 +360,21 @@ export default function CyclesPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Target Group (Optional)
+                      Target group (structured)
+                    </label>
+                    <select
+                      value={formData.targetGroupEnum}
+                      onChange={(e) => setFormData({ ...formData, targetGroupEnum: e.target.value })}
+                      className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-md px-3 py-2"
+                    >
+                      {TARGET_GROUP_OPTIONS.map((o) => (
+                        <option key={o.value || 'none'} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Target Group (free text, optional)
                     </label>
                     <input
                       type="text"
@@ -343,6 +383,30 @@ export default function CyclesPage() {
                       className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-md px-3 py-2"
                       placeholder="e.g., TVET + University (Beginner)"
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max cohort size (10–20)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={formData.maxCohortSize}
+                        onChange={(e) => setFormData({ ...formData, maxCohortSize: e.target.value })}
+                        className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-md px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total weeks</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={52}
+                        value={formData.totalWeeks}
+                        onChange={(e) => setFormData({ ...formData, totalWeeks: e.target.value })}
+                        className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-md px-3 py-2"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

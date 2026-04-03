@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { Search, Eye, Users, Clock, Calendar, TrendingUp, CheckCircle, XCircle, Activity, BarChart3, Filter, Download, Plus } from 'lucide-react'
+import MentorshipSubNav from '@/components/MentorshipSubNav'
+import { Search, Eye, Users, Clock, Calendar, TrendingUp, CheckCircle, XCircle, Activity, BarChart3, Filter, Plus, ArrowRight, FileText, UserCheck, GraduationCap, Settings } from 'lucide-react'
 import { format as formatDate } from 'date-fns'
 import Link from 'next/link'
 
@@ -50,20 +51,34 @@ export default function MentorshipsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [cycleId, setCycleId] = useState<string>('')
+  const [cycles, setCycles] = useState<Array<{ id: string; name: string }>>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   useEffect(() => {
     if (user) {
+      fetchCycles()
       fetchMentorships()
       fetchStats()
     }
-  }, [user, page, statusFilter])
+  }, [user, page, statusFilter, cycleId])
+
+  const fetchCycles = async () => {
+    try {
+      const response = await api.get('/admin/mentorship/cycles')
+      setCycles(response.data || [])
+    } catch (error) {
+      console.error('Error fetching cycles:', error)
+    }
+  }
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/admin/mentorships/stats')
+      const params = new URLSearchParams()
+      if (cycleId) params.append('cycleId', cycleId)
+      const response = await api.get(`/admin/mentorships/stats?${params}`)
       setStats(response.data)
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -77,6 +92,7 @@ export default function MentorshipsPage() {
         page: page.toString(),
         limit: '20',
         ...(statusFilter && { status: statusFilter }),
+        ...(cycleId && { cycleId }),
       })
       const response = await api.get(`/admin/mentorships?${params}`)
       let filteredMentorships = response.data.mentorships
@@ -118,29 +134,67 @@ export default function MentorshipsPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Mentorships</h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Manage all mentorship programs and sessions
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                {viewMode === 'grid' ? 'List View' : 'Grid View'}
-              </button>
-              <Link
-                href="/mentorships/cycles"
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Manage Cycles
+          <MentorshipSubNav />
+
+          {/* Header — Overview is the control center */}
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Mentorship</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Start here. Follow the pipeline below or jump to any section.
+            </p>
+          </div>
+
+          {/* Pipeline: each step is a link */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Pipeline — do in order</p>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-0">
+              <Link href="/mentorships/cycles" className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors text-sm font-medium">
+                <Calendar className="h-4 w-4" /> 1. Cycles
               </Link>
+              <ArrowRight className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0 hidden sm:block" />
+              <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm">
+                <FileText className="h-4 w-4" /> 2. Applications
+              </span>
+              <ArrowRight className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0 hidden sm:block" />
+              <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm">
+                <Users className="h-4 w-4" /> 3. Assign
+              </span>
+              <ArrowRight className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0 hidden sm:block" />
+              <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm">
+                <UserCheck className="h-4 w-4" /> 4. Attendance
+              </span>
+              <ArrowRight className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0 hidden sm:block" />
+              <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm">
+                <GraduationCap className="h-4 w-4" /> 5. Alumni
+              </span>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Open a <Link href="/mentorships/cycles" className="text-primary-600 dark:text-primary-400 hover:underline">cycle</Link> → inside it: Applications tab, then Members (assign) or Matches (run matching) → Attendance → Alumni.
+            </p>
+          </div>
+
+          {/* Quick action cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/mentorships/cycles" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm hover:shadow-md hover:border-primary-300 dark:hover:border-primary-600 transition-all group">
+              <Calendar className="h-8 w-8 text-primary-600 dark:text-primary-400 mb-3 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">Cycles</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Create and manage cohort cycles</p>
+            </Link>
+            <Link href="/mentorships/mentors" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm hover:shadow-md hover:border-primary-300 dark:hover:border-primary-600 transition-all group">
+              <Users className="h-8 w-8 text-primary-600 dark:text-primary-400 mb-3 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">Mentors</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Verify and manage mentors</p>
+            </Link>
+            <Link href="/mentorships/mentees" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm hover:shadow-md hover:border-primary-300 dark:hover:border-primary-600 transition-all group">
+              <GraduationCap className="h-8 w-8 text-primary-600 dark:text-primary-400 mb-3 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">Mentees</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Review mentee profiles</p>
+            </Link>
+            <Link href="/mentorships/automation" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm hover:shadow-md hover:border-primary-300 dark:hover:border-primary-600 transition-all group">
+              <Settings className="h-8 w-8 text-primary-600 dark:text-primary-400 mb-3 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">Automation</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Matching, launch, analytics</p>
+            </Link>
           </div>
 
           {/* Stats Dashboard */}
@@ -264,6 +318,21 @@ export default function MentorshipsPage() {
               <div className="flex items-center gap-2">
                 <Filter className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 <select
+                  value={cycleId}
+                  onChange={(e) => {
+                    setCycleId(e.target.value)
+                    setPage(1)
+                  }}
+                  className="sm:w-48 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">All Cycles</option>
+                  {cycles.map((cycle) => (
+                    <option key={cycle.id} value={cycle.id}>
+                      {cycle.name}
+                    </option>
+                  ))}
+                </select>
+                <select
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value)
@@ -281,14 +350,30 @@ export default function MentorshipsPage() {
             </div>
           </div>
 
+          {/* Section title */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">All mentorships</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                {viewMode === 'grid' ? 'List' : 'Grid'}
+              </button>
+              <Link href="/mentorships/cycles" className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                <Plus className="h-4 w-4" /> New cycle
+              </Link>
+            </div>
+          </div>
+
           {/* Enhanced Mentorships Grid/List */}
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {mentorships.map((mentorship) => (
-              <div
+              <Link
                 key={mentorship.id}
-                onClick={() => (window.location.href = `/mentorships/${mentorship.id}`)}
-                className="bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl rounded-xl p-6 border border-gray-200 dark:border-gray-700 cursor-pointer transition-all duration-200 hover:scale-[1.02]"
+                href={`/mentorships/${mentorship.id}`}
+                className="bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl rounded-xl p-6 border border-gray-200 dark:border-gray-700 cursor-pointer transition-all duration-200 hover:scale-[1.02] block"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -368,7 +453,7 @@ export default function MentorshipsPage() {
                     <Eye className="h-4 w-4 text-primary-600 dark:text-primary-400" />
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
           ) : (

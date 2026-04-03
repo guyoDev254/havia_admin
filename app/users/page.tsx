@@ -12,7 +12,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
 import RoleBadge from '@/components/RoleBadge'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { Search, Trash2, UserX, UserCheck, Shield, Download } from 'lucide-react'
+import { Search, Trash2, UserX, UserCheck, Download, MessageSquare, Send } from 'lucide-react'
 
 interface User {
   id: string
@@ -62,6 +62,13 @@ export default function UsersPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('')
   const [sortBy, setSortBy] = useState<string>('createdAt')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  const [showCommunicateModal, setShowCommunicateModal] = useState(false)
+  const [communicationSubject, setCommunicationSubject] = useState('')
+  const [communicationMessage, setCommunicationMessage] = useState('')
+  const [channelEmail, setChannelEmail] = useState(true)
+  const [channelInApp, setChannelInApp] = useState(true)
+  const [sendingCommunication, setSendingCommunication] = useState(false)
   const prevFiltersRef = useRef({
     page: 1,
     selectedRole: '',
@@ -234,6 +241,77 @@ export default function UsersPage() {
     }
   }
 
+  const toggleSelectUser = (userId: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    )
+  }
+
+  const toggleSelectAllVisible = () => {
+    const visibleIds = users.map((u) => u.id)
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedUserIds.includes(id))
+
+    if (allVisibleSelected) {
+      setSelectedUserIds((prev) => prev.filter((id) => !visibleIds.includes(id)))
+      return
+    }
+
+    setSelectedUserIds((prev) => Array.from(new Set([...prev, ...visibleIds])))
+  }
+
+  const resetCommunicationForm = () => {
+    setCommunicationSubject('')
+    setCommunicationMessage('')
+    setChannelEmail(true)
+    setChannelInApp(true)
+    setShowCommunicateModal(false)
+  }
+
+  const handleSendCommunication = async () => {
+    if (selectedUserIds.length === 0) {
+      showError('No Users Selected', 'Select at least one user before sending communication.')
+      return
+    }
+    if (!communicationSubject.trim()) {
+      showError('Subject Required', 'Please provide a subject.')
+      return
+    }
+    if (!communicationMessage.trim()) {
+      showError('Message Required', 'Please provide a message.')
+      return
+    }
+    if (!channelEmail && !channelInApp) {
+      showError('Select Channel', 'Choose at least one communication channel.')
+      return
+    }
+
+    try {
+      setSendingCommunication(true)
+      const channels = [
+        ...(channelEmail ? ['EMAIL'] : []),
+        ...(channelInApp ? ['IN_APP'] : []),
+      ]
+      const response = await api.post('/admin/users/communicate', {
+        userIds: selectedUserIds,
+        subject: communicationSubject.trim(),
+        message: communicationMessage.trim(),
+        channels,
+      })
+
+      const result = response.data
+      showSuccess(
+        'Communication Sent',
+        `Sent to ${result.totalRecipients} users${result.emailSent ? `, ${result.emailSent} email(s)` : ''}${result.inAppSent ? `, ${result.inAppSent} in-app notification(s)` : ''}.`
+      )
+      setSelectedUserIds([])
+      resetCommunicationForm()
+    } catch (error: any) {
+      showError('Failed to Send', error.response?.data?.message || 'Could not send communication.')
+    } finally {
+      setSendingCommunication(false)
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -258,6 +336,16 @@ export default function UsersPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <PermissionGuard permission={Permission.SEND_BROADCASTS}>
+                <button
+                  onClick={() => setShowCommunicateModal(true)}
+                  disabled={selectedUserIds.length === 0}
+                  className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm flex items-center gap-2 font-medium text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  Communicate ({selectedUserIds.length})
+                </button>
+              </PermissionGuard>
               <PermissionGuard permission={Permission.EXPORT_DATA}>
                 <button
                   onClick={handleExport}
@@ -360,6 +448,14 @@ export default function UsersPage() {
               <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      onChange={toggleSelectAllVisible}
+                      checked={users.length > 0 && users.every((u) => selectedUserIds.includes(u.id))}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     User
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -386,6 +482,14 @@ export default function UsersPage() {
                     className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 cursor-pointer transition-colors"
                     onClick={() => router.push(`/users/${user.id}`)}
                   >
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.includes(user.id)}
+                        onChange={() => toggleSelectUser(user.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-12 w-12 mr-4">
@@ -515,6 +619,75 @@ export default function UsersPage() {
                   </div>
                 )}
         </div>
+        {showCommunicateModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-xl border border-gray-200 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Send Communication</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Sending to {selectedUserIds.length} selected user(s)
+                </p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Subject
+                  </label>
+                  <input
+                    type="text"
+                    value={communicationSubject}
+                    onChange={(e) => setCommunicationSubject(e.target.value)}
+                    placeholder="Enter subject"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Message
+                  </label>
+                  <textarea
+                    rows={6}
+                    value={communicationMessage}
+                    onChange={(e) => setCommunicationMessage(e.target.value)}
+                    placeholder="Write your message..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Channels
+                  </label>
+                  <div className="flex items-center gap-6">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input type="checkbox" checked={channelEmail} onChange={(e) => setChannelEmail(e.target.checked)} />
+                      Email
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input type="checkbox" checked={channelInApp} onChange={(e) => setChannelInApp(e.target.checked)} />
+                      In-app notification
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                <button
+                  onClick={resetCommunicationForm}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendCommunication}
+                  disabled={sendingCommunication}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  {sendingCommunication ? 'Sending...' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
     </ProtectedRoute>

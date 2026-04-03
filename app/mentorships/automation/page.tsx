@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PermissionGuard from '@/components/PermissionGuard'
+import MentorshipSubNav from '@/components/MentorshipSubNav'
 import { 
   Rocket, 
   Users, 
@@ -116,10 +117,23 @@ export default function MentorshipAutomationPage() {
     try {
       setActionLoading(`launch-${cycleId}`)
       const response = await api.post(`/admin/mentorship/cycles/${cycleId}/launch`)
-      alert(`Cycle launched! Notified ${response.data.mentorsNotified} mentors and ${response.data.menteesNotified} mentees.`)
+      alert(`Cycle launched! All active users (${response.data.usersNotified}) have been notified to apply as mentors, mentees, or volunteers.`)
       fetchData()
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to launch cycle')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleRunDropoutCheck = async () => {
+    try {
+      setActionLoading('dropout-check')
+      const response = await api.post('/admin/mentorship/cron/check-absent')
+      alert(`Dropout check completed. Checked ${response.data?.checked ?? 0} active cycle(s). (2 consecutive unexcused absences → DROPPED)`)
+      fetchData()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to run dropout check')
     } finally {
       setActionLoading(null)
     }
@@ -210,6 +224,7 @@ export default function MentorshipAutomationPage() {
       <PermissionGuard permission={Permission.MANAGE_MENTORSHIP}>
         <Layout>
           <div className="space-y-6">
+            <MentorshipSubNav breadcrumbs={[{ label: 'Automation' }]} />
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 Mentorship Automation
@@ -222,7 +237,7 @@ export default function MentorshipAutomationPage() {
             {/* Cycle Selector */}
             <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-4 border border-gray-200 dark:border-gray-700">
               <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                Filter by Cycle (Optional)
+                Cycle (required for Run Matching; optional for stats)
               </label>
               <select
                 value={selectedCycle}
@@ -377,6 +392,19 @@ export default function MentorshipAutomationPage() {
                       No cycles available to launch. All cycles are either active or completed.
                     </p>
                   )}
+                </div>
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Run the attendance dropout check for all active cycles (2 consecutive unexcused absences → mentorship DROPPED). Also runs automatically every Monday at 6:00 AM.
+                  </p>
+                  <button
+                    onClick={handleRunDropoutCheck}
+                    disabled={actionLoading === 'dropout-check'}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-lg hover:bg-amber-700 dark:hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
+                  >
+                    <Clock className="h-4 w-4" />
+                    {actionLoading === 'dropout-check' ? 'Running...' : 'Run dropout check now'}
+                  </button>
                 </div>
               </div>
             )}
