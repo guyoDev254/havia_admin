@@ -215,7 +215,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Havia Admin</h1>
+                <h1 className="text-xl font-bold text-white">NBC Admin</h1>
                 <p className="text-xs text-blue-100">Control Panel</p>
               </div>
             </div>
@@ -314,7 +314,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Havia Admin</h1>
+                <h1 className="text-xl font-bold text-white">NBC Admin</h1>
                 <p className="text-xs text-blue-100">Control Panel</p>
               </div>
             </div>

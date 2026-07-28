@@ -159,7 +159,7 @@ export default function LoginPage() {
               ? 'bg-gradient-to-r from-blue-300 to-purple-300' 
               : 'bg-gradient-to-r from-blue-400 to-purple-400'
           }`}>
-            Havia Admin
+            NBC Admin
           </h2>
           <p className={`mt-2 text-center text-sm drop-shadow-md transition-colors duration-300 ${
             isDark ? 'text-white/80' : 'text-white/90'

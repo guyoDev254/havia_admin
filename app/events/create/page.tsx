@@ -121,14 +121,14 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
       }
 
       // Only include clubId if it's provided (club events)
-      // If no clubId, it's a Havia-hosted platform event
+      // If no clubId, it's a NBC-hosted platform event
       if (formData.clubId && formData.clubId.trim()) {
         payload.clubId = formData.clubId.trim()
         // Use the club-specific endpoint for club events
         await api.post(`/events/clubs/${formData.clubId.trim()}`, payload)
       } else {
-        // Use general endpoint for Havia events (no club)
-        // Don't include clubId in payload for Havia events
+        // Use general endpoint for NBC events (no club)
+        // Don't include clubId in payload for NBC events
         await api.post('/events', payload)
       }
       alert('Event created successfully!')
@@ -171,7 +171,7 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
               {clubId || formData.clubId
                 ? 'This event is for a specific club.' 
-                : 'Leave empty to create a Havia-hosted platform event. Select a club to create a club-specific event.'}
+                : 'Leave empty to create a NBC-hosted platform event. Select a club to create a club-specific event.'}
             </p>
             {clubId ? (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -187,7 +187,7 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
                   }}
                   className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  Change to Havia event (remove club association)
+                  Change to NBC event (remove club association)
                 </button>
               </div>
             ) : (
@@ -207,7 +207,7 @@ export default function CreateEventPage({ searchParams }: { searchParams?: { clu
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500"
                 disabled={loadingClubs}
               >
-                <option value="">-- Havia Event (No Club) --</option>
+                <option value="">-- NBC Event (No Club) --</option>
                 {clubs.map((club) => (
                   <option key={club.id} value={club.id}>
                     {club.name}

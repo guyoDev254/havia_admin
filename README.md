@@ -1,6 +1,6 @@
-# Havia Admin Panel
+# NBC Admin Panel
 
-Next.js admin panel for managing the NorthernBox Havia community platform.
+Next.js admin panel for managing the NorthernBox NBC community platform.
 
 ## Features
 

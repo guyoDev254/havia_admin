@@ -7,8 +7,8 @@ import { Providers } from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Havia Admin - NorthernBox',
-  description: 'Admin panel for NorthernBox Havia App',
+  title: 'NBC Admin - NorthernBox',
+  description: 'Admin panel for NorthernBox NBC App',
 }
 
 export default function RootLayout({

@@ -606,7 +606,7 @@ export default function UserDetailPage() {
                   )}
 
                   {/* Clubs */}
-                  {user.clubs.length > 0 && (
+                  {user.clubs?.length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Clubs</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -624,7 +624,7 @@ export default function UserDetailPage() {
                   )}
 
                   {/* Badges */}
-                  {user.userBadges.length > 0 && (
+                  {user.userBadges?.length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Badges</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
